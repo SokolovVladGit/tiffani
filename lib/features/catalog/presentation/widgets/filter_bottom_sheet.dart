@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/filter_state.dart';
 import '../cubit/filter_cubit.dart';
 
@@ -26,7 +28,9 @@ void showFilterBottomSheet(
     context: context,
     isScrollControlled: true,
     shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(AppRadius.xl),
+      ),
     ),
     backgroundColor: AppColors.surface,
     builder: (_) => BlocProvider.value(
@@ -45,7 +49,12 @@ class _FilterSheetContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl,
+          AppSpacing.md,
+          AppSpacing.xl,
+          AppSpacing.lg,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,16 +69,16 @@ class _FilterSheetContent extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             const Text(
               'Filters',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             BlocBuilder<FilterCubit, FilterState>(
               builder: (context, state) {
                 return Column(
@@ -79,9 +88,9 @@ class _FilterSheetContent extends StatelessWidget {
                       _SectionTitle(
                         text: _sectionLabels[entry.key] ?? entry.key,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: AppSpacing.sm),
                       Wrap(
-                        spacing: 8,
+                        spacing: AppSpacing.sm,
                         runSpacing: 6,
                         children: entry.value.map((value) {
                           final selected =
@@ -106,18 +115,19 @@ class _FilterSheetContent extends StatelessWidget {
                                   : AppColors.textPrimary,
                             ),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.sm),
                             ),
                           );
                         }).toList(),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.lg),
                     ],
                   ],
                 );
               },
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
                 Expanded(
@@ -128,9 +138,12 @@ class _FilterSheetContent extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: AppColors.border),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius:
+                            BorderRadius.circular(AppRadius.md),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.lg,
+                      ),
                     ),
                     child: const Text(
                       'Clear',
@@ -138,7 +151,7 @@ class _FilterSheetContent extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {

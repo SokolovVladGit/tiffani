@@ -3,9 +3,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../catalog/presentation/widgets/catalog_card.dart';
+import '../../../catalog/presentation/widgets/catalog_list_skeleton.dart';
 import '../cubit/favorites_cubit.dart';
 import '../cubit/favorites_items_cubit.dart';
 import '../cubit/favorites_items_state.dart';
@@ -61,21 +64,29 @@ class _FavoritesPageState extends State<FavoritesPage> {
           bloc: _itemsCubit,
           builder: (context, state) {
             if (state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
+              return const CatalogListSkeleton();
             }
             if (state.items.isEmpty) {
               return _EmptyView();
             }
             return ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.only(
+                top: AppSpacing.xs,
+                bottom: AppSpacing.lg,
+              ),
               itemCount: state.items.length,
               itemBuilder: (context, index) {
                 final item = state.items[index];
+                final heroTag = 'favorites-${item.id}';
                 return CatalogCard(
                   item: item,
+                  heroTag: heroTag,
                   onTap: () => context.push(
                     RouteNames.catalogDetails,
-                    extra: item,
+                    extra: ProductDetailsPayload(
+                      item: item,
+                      heroTag: heroTag,
+                    ),
                   ),
                 );
               },
@@ -92,17 +103,17 @@ class _EmptyView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.favorite_border,
               size: 48,
               color: AppColors.textTertiary,
             ),
-            const SizedBox(height: 12),
-            Text(
+            const SizedBox(height: AppSpacing.md),
+            const Text(
               'No favorites yet',
               style: TextStyle(
                 fontSize: 16,

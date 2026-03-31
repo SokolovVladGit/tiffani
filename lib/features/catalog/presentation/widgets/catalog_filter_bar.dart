@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/catalog_filters_entity.dart';
 import '../../domain/entities/catalog_sort_option.dart';
 import '../bloc/catalog_bloc.dart';
@@ -18,7 +20,12 @@ class CatalogFilterBar extends StatelessWidget {
       builder: (context, state) {
         return Container(
           color: AppColors.surface,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            0,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
           child: Row(
             children: [
               _ChipButton(
@@ -28,7 +35,7 @@ class CatalogFilterBar extends StatelessWidget {
                     state.selectedMark != null,
                 onTap: () => _showFilterSheet(context),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               _ChipButton(
                 label: _sortLabel(state.sortOption),
                 isActive:
@@ -37,17 +44,27 @@ class CatalogFilterBar extends StatelessWidget {
               ),
               if (state.hasActiveFilters) ...[
                 const Spacer(),
-                GestureDetector(
-                  onTap: () {
-                    context.read<CatalogFilterCubit>().clearAll();
-                    _applyFilters(context);
-                  },
-                  child: const Text(
-                    'Clear',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.seed,
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      context.read<CatalogFilterCubit>().clearAll();
+                      _applyFilters(context);
+                    },
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(
+                        vertical: AppSpacing.xs,
+                        horizontal: AppSpacing.xs,
+                      ),
+                      child: Text(
+                        'Clear',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.seed,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -87,7 +104,9 @@ class CatalogFilterBar extends StatelessWidget {
       context: outerContext,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
       ),
       builder: (_) => BlocProvider.value(
         value: cubit,
@@ -102,7 +121,9 @@ class CatalogFilterBar extends StatelessWidget {
     showModalBottomSheet(
       context: outerContext,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(AppRadius.xl),
+        ),
       ),
       builder: (_) => BlocProvider.value(
         value: cubit,
@@ -125,37 +146,46 @@ class _ChipButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive
-              ? AppColors.seed.withValues(alpha: 0.1)
-              : AppColors.surfaceDim,
-          borderRadius: BorderRadius.circular(20),
-          border: isActive
-              ? Border.all(color: AppColors.seed, width: 1)
-              : null,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: isActive ? AppColors.seed : AppColors.textSecondary,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: 6,
+          ),
+          decoration: BoxDecoration(
+            color: isActive
+                ? AppColors.seed.withValues(alpha: 0.1)
+                : AppColors.surfaceDim,
+            borderRadius: BorderRadius.circular(20),
+            border: isActive
+                ? Border.all(color: AppColors.seed, width: 1)
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color:
+                      isActive ? AppColors.seed : AppColors.textSecondary,
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down,
-              size: 16,
-              color: isActive ? AppColors.seed : AppColors.textTertiary,
-            ),
-          ],
+              const SizedBox(width: AppSpacing.xs),
+              Icon(
+                Icons.keyboard_arrow_down,
+                size: 16,
+                color:
+                    isActive ? AppColors.seed : AppColors.textTertiary,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -174,10 +204,10 @@ class _FilterSheet extends StatelessWidget {
         final cubit = context.read<CatalogFilterCubit>();
         return Padding(
           padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            20 + MediaQuery.of(context).padding.bottom,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl + MediaQuery.of(context).padding.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -191,28 +221,28 @@ class _FilterSheet extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.lg),
               _buildDropdown(
                 label: 'Brand',
                 value: state.selectedBrand,
                 items: state.availableBrands,
                 onChanged: (v) => cubit.setBrand(v),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               _buildDropdown(
                 label: 'Category',
                 value: state.selectedCategory,
                 items: state.availableCategories,
                 onChanged: (v) => cubit.setCategory(v),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               _buildDropdown(
                 label: 'Badge',
                 value: state.selectedMark,
                 items: state.availableMarks,
                 onChanged: (v) => cubit.setMark(v),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: AppSpacing.xl),
               Row(
                 children: [
                   Expanded(
@@ -228,7 +258,7 @@ class _FilterSheet extends StatelessWidget {
                       child: const Text('Clear'),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
@@ -288,10 +318,10 @@ class _SortSheet extends StatelessWidget {
         final cubit = context.read<CatalogFilterCubit>();
         return Padding(
           padding: EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            20 + MediaQuery.of(context).padding.bottom,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl,
+            AppSpacing.xl + MediaQuery.of(context).padding.bottom,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -305,7 +335,7 @@ class _SortSheet extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               RadioGroup<CatalogSortOption>(
                 groupValue: state.sortOption,
                 onChanged: (v) {
@@ -323,7 +353,7 @@ class _SortSheet extends StatelessWidget {
                       .toList(),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: AppSpacing.md),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

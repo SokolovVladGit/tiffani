@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../../../catalog/domain/entities/catalog_item_entity.dart';
 import 'home_horizontal_item_card.dart';
 
@@ -17,26 +18,19 @@ class HomeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ),
+        SectionHeader(title: title),
         SizedBox(
-          height: 216,
+          height: 228,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (_, index) =>
-                HomeHorizontalItemCard(item: items[index]),
+            separatorBuilder: (_, _) =>
+                const SizedBox(width: AppSpacing.md),
+            itemBuilder: (_, index) => HomeHorizontalItemCard(
+              item: items[index],
+              heroTag: 'home-${title.toLowerCase()}-${items[index].id}',
+            ),
           ),
         ),
       ],

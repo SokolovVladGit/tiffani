@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import 'catalog_card.dart';
 
@@ -23,7 +25,16 @@ class CatalogGrid extends StatefulWidget {
 }
 
 class _CatalogGridState extends State<CatalogGrid> {
+  final _scrollController = ScrollController();
   bool _loadMoreTriggered = false;
+
+  static const _prefetchThreshold = 0.75;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void didUpdateWidget(covariant CatalogGrid oldWidget) {
@@ -34,10 +45,23 @@ class _CatalogGridState extends State<CatalogGrid> {
     }
   }
 
-  void _onItemBuilt(int index) {
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
     if (_loadMoreTriggered) return;
     if (widget.onLoadMore == null) return;
-    if (index >= widget.items.length - 5) {
+    if (!_scrollController.hasClients) return;
+
+    final position = _scrollController.position;
+    if (position.maxScrollExtent <= 0) return;
+
+    final ratio = position.pixels / position.maxScrollExtent;
+    if (ratio >= _prefetchThreshold) {
       _loadMoreTriggered = true;
       widget.onLoadMore!();
     }
@@ -47,17 +71,22 @@ class _CatalogGridState extends State<CatalogGrid> {
   Widget build(BuildContext context) {
     final itemCount = widget.items.length + (widget.isLoadingMore ? 1 : 0);
     return ListView.builder(
+      controller: _scrollController,
       itemCount: itemCount,
-      padding: const EdgeInsets.only(top: 4, bottom: 16),
+      padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
       itemBuilder: (context, index) {
         if (index >= widget.items.length) {
           return const _BottomLoader();
         }
-        _onItemBuilt(index);
         final item = widget.items[index];
+        final heroTag = 'catalog-${item.id}';
         return CatalogCard(
           item: item,
-          onTap: () => context.push(RouteNames.catalogDetails, extra: item),
+          heroTag: heroTag,
+          onTap: () => context.push(
+            RouteNames.catalogDetails,
+            extra: ProductDetailsPayload(item: item, heroTag: heroTag),
+          ),
         );
       },
     );
@@ -70,7 +99,7 @@ class _BottomLoader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
       child: Center(
         child: SizedBox(
           width: 24,

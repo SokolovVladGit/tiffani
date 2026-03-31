@@ -9,4 +9,5 @@ class RouteNames {
   static const favorites = '/favorites';
   static const brands = '/brands';
   static const brandCatalog = '/brand-catalog';
+  static const requestSuccess = '/request-success';
 }

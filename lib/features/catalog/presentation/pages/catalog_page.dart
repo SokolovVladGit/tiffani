@@ -12,7 +12,9 @@ import '../../../favorites/presentation/cubit/favorites_cubit.dart';
 import '../../../favorites/presentation/cubit/favorites_state.dart';
 import '../../domain/entities/catalog_filters_entity.dart';
 import '../../domain/entities/filter_state.dart';
-import '../../domain/repositories/catalog_repository.dart';
+import '../../domain/usecases/get_all_brands_use_case.dart';
+import '../../domain/usecases/get_available_categories_use_case.dart';
+import '../../domain/usecases/get_available_marks_use_case.dart';
 import '../bloc/catalog_bloc.dart';
 import '../bloc/catalog_event.dart';
 import '../bloc/catalog_state.dart';
@@ -47,7 +49,11 @@ class _CatalogPageState extends State<CatalogPage> {
     _filterCubit = sl<FilterCubit>();
 
     if (widget.initialBrand != null) {
-      _catalogFilterCubit = CatalogFilterCubit(sl<CatalogRepository>());
+      _catalogFilterCubit = CatalogFilterCubit(
+        sl<GetAllBrandsUseCase>(),
+        sl<GetAvailableCategoriesUseCase>(),
+        sl<GetAvailableMarksUseCase>(),
+      );
       _ownsCatalogFilterCubit = true;
       _catalogFilterCubit
         ..loadFilterOptions()
@@ -198,6 +204,7 @@ class _CartButton extends StatelessWidget {
     return BlocProvider.value(
       value: sl<CartCubit>(),
       child: BlocBuilder<CartCubit, CartState>(
+        buildWhen: (prev, curr) => prev.totalItems != curr.totalItems,
         builder: (context, state) {
           final count = state.totalItems;
           return IconButton(
@@ -256,7 +263,7 @@ class _CatalogBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<CatalogBloc, CatalogState>(
       builder: (context, state) {
-        return switch (state.status) {
+        final child = switch (state.status) {
           CatalogStatus.initial ||
           CatalogStatus.loading => const CatalogListSkeleton(),
           CatalogStatus.failure => _FailureView(
@@ -267,9 +274,10 @@ class _CatalogBody extends StatelessWidget {
             hasActiveFilters: state.hasActiveFilters,
             onClearFilters: () {
               context.read<FilterCubit>().clear();
-              context.read<CatalogBloc>().add(
-                    const CatalogAttributeFiltersApplied({}),
-                  );
+              context.read<CatalogFilterCubit>().clearAll();
+              context.read<CatalogBloc>()
+                ..add(const CatalogAttributeFiltersApplied({}))
+                ..add(CatalogFiltersApplied(const CatalogFiltersEntity()));
             },
           ),
           CatalogStatus.success => CatalogGrid(
@@ -282,6 +290,10 @@ class _CatalogBody extends StatelessWidget {
             },
           ),
         };
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
       },
     );
   }

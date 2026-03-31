@@ -25,6 +25,13 @@ class CartState {
 
   bool get isEmpty => items.isEmpty;
 
+  int quantityOf(String itemId) {
+    for (final item in items) {
+      if (item.id == itemId) return item.quantity;
+    }
+    return 0;
+  }
+
   CartState copyWith({
     CartStatus? status,
     List<CartItemEntity>? items,

@@ -2,75 +2,93 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../../catalog/domain/entities/catalog_item_entity.dart';
 import '../../../favorites/presentation/widgets/favorite_button.dart';
 
 class HomeHorizontalItemCard extends StatelessWidget {
   final CatalogItemEntity item;
+  final String? heroTag;
 
-  const HomeHorizontalItemCard({super.key, required this.item});
+  const HomeHorizontalItemCard({super.key, required this.item, this.heroTag});
+
+  static const double cardWidth = 152;
+  static const double _imageHeight = 130;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push(RouteNames.catalogDetails, extra: item),
-      child: Container(
-        width: 140,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border, width: 0.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Stack(
-              children: [
-                _ImageBox(imageUrl: item.imageUrl),
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: FavoriteButton(id: item.id, iconSize: 16),
-                ),
-              ],
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: cardWidth,
+      decoration: AppDecorations.cardSoft(radius: AppRadius.lg),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => context.push(
+            RouteNames.catalogDetails,
+            extra: ProductDetailsPayload(item: item, heroTag: heroTag),
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
                 children: [
-                  Text(
-                    item.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
-                      height: 1.3,
-                    ),
+                  if (heroTag != null)
+                    Hero(
+                      tag: heroTag!,
+                      child: _ImageBox(imageUrl: item.imageUrl),
+                    )
+                  else
+                    _ImageBox(imageUrl: item.imageUrl),
+                  Positioned(
+                    top: AppSpacing.xs,
+                    right: AppSpacing.xs,
+                    child: FavoriteButton(id: item.id, iconSize: 16),
                   ),
-                  if (item.brand != null && item.brand!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      item.brand!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 4),
-                  _PriceRow(price: item.price, oldPrice: item.oldPrice),
                 ],
               ),
-            ),
-          ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, AppSpacing.sm, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (item.brand != null && item.brand!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        item.brand!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppSpacing.xs),
+                    _PriceRow(price: item.price, oldPrice: item.oldPrice),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -86,30 +104,28 @@ class _ImageBox extends StatelessWidget {
   Widget build(BuildContext context) {
     final url = imageUrl;
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(AppRadius.lg),
+      ),
       child: (url != null && url.isNotEmpty)
           ? CachedNetworkImage(
               imageUrl: url,
-              width: 140,
-              height: 120,
+              width: HomeHorizontalItemCard.cardWidth,
+              height: HomeHorizontalItemCard._imageHeight,
               fit: BoxFit.contain,
-              placeholder: (_, _) => _placeholder(),
-              errorWidget: (_, _, _) => _placeholder(),
+              placeholder: (_, _) => const AppImagePlaceholder(
+                width: HomeHorizontalItemCard.cardWidth,
+                height: HomeHorizontalItemCard._imageHeight,
+              ),
+              errorWidget: (_, _, _) => const AppImagePlaceholder(
+                width: HomeHorizontalItemCard.cardWidth,
+                height: HomeHorizontalItemCard._imageHeight,
+              ),
             )
-          : _placeholder(),
-    );
-  }
-
-  Widget _placeholder() {
-    return Container(
-      width: 140,
-      height: 120,
-      color: AppColors.surfaceDim,
-      child: const Icon(
-        Icons.image_outlined,
-        size: 28,
-        color: AppColors.textTertiary,
-      ),
+          : const AppImagePlaceholder(
+              width: HomeHorizontalItemCard.cardWidth,
+              height: HomeHorizontalItemCard._imageHeight,
+            ),
     );
   }
 }
@@ -133,13 +149,13 @@ class _PriceRow extends StatelessWidget {
         Text(
           formatted,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
         if (showOld) ...[
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Flexible(
             child: Text(
               PriceFormatter.formatRub(oldPrice),

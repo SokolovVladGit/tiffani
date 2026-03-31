@@ -22,4 +22,9 @@ class AppColors {
   static const Color priceOld = Color(0xFF9E9EA6);
 
   static const Color skeleton = Color(0xFFE8E8ED);
+  static const Color surfaceWarm = Color(0xFFFDF8F9);
+
+  static const Color stockAvailable = Color(0xFF2E9E5A);
+  static const Color stockLimited = Color(0xFFD4870F);
+  static const Color saleBadgeSurface = Color(0xFFFDECEB);
 }

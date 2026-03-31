@@ -78,6 +78,18 @@ class AppTheme {
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          side: const BorderSide(color: AppColors.border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+        ),
+      ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
         thickness: 0.5,

@@ -31,4 +31,11 @@ abstract interface class CatalogRepository {
   Future<List<String>> getAvailableBrands();
   Future<List<String>> getAvailableCategories();
   Future<List<String>> getAvailableMarks();
+
+  Future<List<CatalogItemEntity>> getSimilarProducts({
+    required String excludeId,
+    String? brand,
+    String? category,
+    int limit = 10,
+  });
 }
