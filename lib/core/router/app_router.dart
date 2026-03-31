@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/app_shell/presentation/pages/app_shell_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
+import '../../features/cart/presentation/pages/request_success_page.dart';
 import '../../features/catalog/domain/entities/catalog_item_entity.dart';
 import '../../features/catalog/presentation/pages/brands_page.dart';
 import '../../features/catalog/presentation/pages/catalog_details_page.dart';
@@ -9,6 +10,7 @@ import '../../features/catalog/presentation/pages/catalog_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/stores_delivery/presentation/pages/stores_delivery_page.dart';
+import 'product_details_payload.dart';
 import 'route_names.dart';
 
 class AppRouter {
@@ -58,8 +60,14 @@ class AppRouter {
       GoRoute(
         path: RouteNames.catalogDetails,
         builder: (context, state) {
-          final item = state.extra! as CatalogItemEntity;
-          return CatalogDetailsPage(item: item);
+          final extra = state.extra;
+          if (extra is ProductDetailsPayload) {
+            return CatalogDetailsPage(
+              item: extra.item,
+              heroTag: extra.heroTag,
+            );
+          }
+          return CatalogDetailsPage(item: extra! as CatalogItemEntity);
         },
       ),
       GoRoute(
@@ -76,6 +84,10 @@ class AppRouter {
           final brand = state.extra! as String;
           return CatalogPage(initialBrand: brand);
         },
+      ),
+      GoRoute(
+        path: RouteNames.requestSuccess,
+        builder: (context, state) => const RequestSuccessPage(),
       ),
     ],
   );

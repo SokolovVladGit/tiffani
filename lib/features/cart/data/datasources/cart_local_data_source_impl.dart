@@ -15,10 +15,15 @@ class CartLocalDataSourceImpl implements CartLocalDataSource {
   Future<List<CartItemDto>> getCartItems() async {
     final raw = _prefs.getString(StorageKeys.cartItems);
     if (raw == null || raw.isEmpty) return [];
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((e) => CartItemDto.fromMap(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list
+          .map((e) => CartItemDto.fromMap(e as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      await clearCart();
+      return [];
+    }
   }
 
   @override

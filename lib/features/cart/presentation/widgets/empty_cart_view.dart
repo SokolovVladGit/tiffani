@@ -1,25 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
 
 class EmptyCartView extends StatelessWidget {
   const EmptyCartView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return Center(
       child: Padding(
-        padding: EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xxxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.shopping_bag_outlined,
-              size: 56,
+              size: 48,
               color: AppColors.textTertiary,
             ),
-            SizedBox(height: 16),
-            Text(
+            const SizedBox(height: AppSpacing.lg),
+            const Text(
               'Your cart is empty',
               style: TextStyle(
                 fontSize: 17,
@@ -27,8 +29,8 @@ class EmptyCartView extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            SizedBox(height: 6),
-            Text(
+            const SizedBox(height: AppSpacing.sm),
+            const Text(
               'Add products from the catalog\nto prepare a request.',
               textAlign: TextAlign.center,
               style: TextStyle(
@@ -36,6 +38,18 @@ class EmptyCartView extends StatelessWidget {
                 color: AppColors.textSecondary,
                 height: 1.4,
               ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            ElevatedButton(
+              onPressed: () {
+                final shell = StatefulNavigationShell.maybeOf(context);
+                if (shell != null) {
+                  shell.goBranch(1);
+                } else {
+                  context.go('/catalog');
+                }
+              },
+              child: const Text('Go to catalog'),
             ),
           ],
         ),

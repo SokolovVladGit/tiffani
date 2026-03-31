@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/section_header.dart';
 import '../cubit/top_brands_cubit.dart';
 import 'top_brand_card.dart';
 
@@ -14,9 +17,18 @@ class TopBrandsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<TopBrandsCubit, TopBrandsState>(
       builder: (context, state) {
-        if (state.isLoading) return const _Skeleton();
-        if (state.brands.isEmpty) return const SizedBox.shrink();
-        return _Content(brands: state.brands);
+        final Widget child;
+        if (state.isLoading) {
+          child = const _Skeleton();
+        } else if (state.brands.isEmpty) {
+          child = const SizedBox.shrink();
+        } else {
+          child = _Content(brands: state.brands);
+        }
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
       },
     );
   }
@@ -32,51 +44,24 @@ class _Content extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Top Brands',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              GestureDetector(
-                onTap: () => context.push(RouteNames.brands),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'See all',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.seed,
-                      ),
-                    ),
-                    SizedBox(width: 2),
-                    Icon(
-                      Icons.chevron_right,
-                      size: 16,
-                      color: AppColors.seed,
-                    ),
-                  ],
-                ),
-              ),
-            ],
+        SectionHeader(
+          title: 'Top Brands',
+          actionText: 'See all',
+          onAction: () => context.push(RouteNames.brands),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xxxl,
+            AppSpacing.lg,
+            AppSpacing.md,
           ),
         ),
         SizedBox(
-          height: 118,
+          height: 108,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             itemCount: brands.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
             itemBuilder: (context, index) {
               final brand = brands[index];
               return TopBrandCard(
@@ -101,29 +86,34 @@ class _Skeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 32, 16, 12),
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.xxxl,
+            AppSpacing.lg,
+            AppSpacing.md,
+          ),
           child: Container(
             width: 120,
             height: 18,
             decoration: BoxDecoration(
               color: AppColors.skeleton,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.sm),
             ),
           ),
         ),
         SizedBox(
-          height: 118,
+          height: 108,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
             itemCount: 4,
-            separatorBuilder: (_, __) => const SizedBox(width: 10),
-            itemBuilder: (_, __) => Container(
-              width: 122,
+            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+            itemBuilder: (_, _) => Container(
+              width: TopBrandCard.cardWidth,
               decoration: BoxDecoration(
                 color: AppColors.skeleton,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
             ),
           ),

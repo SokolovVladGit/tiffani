@@ -1,8 +1,13 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../domain/entities/cart_item_entity.dart';
 
 class CartItemTile extends StatelessWidget {
@@ -22,18 +27,17 @@ class CartItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: AppSpacing.xs,
       ),
-      padding: const EdgeInsets.all(10),
+      decoration: AppDecorations.cardSoft(),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildImage(),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,24 +77,38 @@ class CartItemTile extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 8),
+                const SizedBox(height: AppSpacing.sm),
                 Row(
                   children: [
-                    Text(
-                      PriceFormatter.formatRub(item.price),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (item.quantity > 1 && item.price != null)
+                            Text(
+                              '${PriceFormatter.formatRub(item.price)} × ${item.quantity}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          Text(
+                            PriceFormatter.formatRub(_subtotal),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
                     _QuantityControls(
                       quantity: item.quantity,
                       onIncrement: onIncrement,
                       onDecrement: onDecrement,
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: AppSpacing.sm),
                     _RemoveButton(onRemove: onRemove),
                   ],
                 ),
@@ -104,38 +122,41 @@ class CartItemTile extends StatelessWidget {
 
   Widget _buildImage() {
     const size = 72.0;
+    final radius = BorderRadius.circular(AppRadius.md);
     final url = item.imageUrl;
     if (url != null && url.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: radius,
         child: CachedNetworkImage(
           imageUrl: url,
           width: size,
           height: size,
           fit: BoxFit.contain,
-          placeholder: (_, _) => _placeholder(size),
-          errorWidget: (_, _, _) => _placeholder(size),
+          placeholder: (_, _) => AppImagePlaceholder(
+            width: size,
+            height: size,
+            iconSize: 24,
+            borderRadius: radius,
+          ),
+          errorWidget: (_, _, _) => AppImagePlaceholder(
+            width: size,
+            height: size,
+            iconSize: 24,
+            borderRadius: radius,
+          ),
         ),
       );
     }
-    return _placeholder(size);
-  }
-
-  Widget _placeholder(double size) {
-    return Container(
+    return AppImagePlaceholder(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Icon(
-        Icons.image_outlined,
-        color: AppColors.textTertiary,
-        size: 24,
-      ),
+      iconSize: 24,
+      borderRadius: radius,
     );
   }
+
+  double? get _subtotal =>
+      item.price != null ? item.price! * item.quantity : item.price;
 
   bool get _hasSubline =>
       (item.edition?.isNotEmpty ?? false) ||
@@ -166,7 +187,7 @@ class _QuantityControls extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -191,8 +212,11 @@ class _QuantityControls extends StatelessWidget {
 
   Widget _button(IconData icon, VoidCallback onTap) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
         padding: const EdgeInsets.all(6),
         child: Icon(icon, size: 16, color: AppColors.textSecondary),
@@ -210,7 +234,7 @@ class _RemoveButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onRemove,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadius.sm),
       child: const Padding(
         padding: EdgeInsets.all(6),
         child: Icon(

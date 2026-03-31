@@ -7,7 +7,7 @@ class PriceFormatter {
       return '${value.toInt()} ₽';
     }
     final formatted = value.toStringAsFixed(2);
-    final trimmed = formatted.replaceAll(RegExp(r'0+$'), '');
+    final trimmed = formatted.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
     return '$trimmed ₽';
   }
 }

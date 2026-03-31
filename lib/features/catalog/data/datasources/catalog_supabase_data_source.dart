@@ -31,4 +31,11 @@ abstract interface class CatalogSupabaseDataSource {
   Future<List<String>> getAvailableBrands();
   Future<List<String>> getAvailableCategories();
   Future<List<String>> getAvailableMarks();
+
+  Future<List<CatalogItemDto>> getSimilarProducts({
+    required String excludeId,
+    String? brand,
+    String? category,
+    int limit = 10,
+  });
 }

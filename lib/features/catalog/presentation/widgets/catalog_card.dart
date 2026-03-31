@@ -1,45 +1,66 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/utils/product_trust_helpers.dart';
+import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../../cart/domain/entities/cart_item_from_catalog.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
+import '../../../cart/presentation/cubit/cart_state.dart';
 import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 
 class CatalogCard extends StatelessWidget {
   final CatalogItemEntity item;
   final VoidCallback? onTap;
+  final String? heroTag;
 
-  const CatalogCard({super.key, required this.item, this.onTap});
+  const CatalogCard({
+    super.key,
+    required this.item,
+    this.onTap,
+    this.heroTag,
+  });
+
+  static const double _imageSize = 108;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 5,
       ),
+      decoration: AppDecorations.cardSoft(),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Padding(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(
-                  width: 96,
-                  height: 96,
+                  width: _imageSize,
+                  height: _imageSize,
                   child: Stack(
                     children: [
-                      _ImageBox(imageUrl: item.imageUrl),
+                      if (heroTag != null)
+                        Hero(
+                          tag: heroTag!,
+                          child: _ImageBox(imageUrl: item.imageUrl),
+                        )
+                      else
+                        _ImageBox(imageUrl: item.imageUrl),
                       Positioned(
                         top: 0,
                         right: 0,
@@ -48,23 +69,8 @@ class CatalogCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _InfoColumn(
-                    item: item,
-                    onAddToCart: () {
-                      sl<CartCubit>().addItem(cartItemFromCatalog(item));
-                      ScaffoldMessenger.of(context)
-                        ..hideCurrentSnackBar()
-                        ..showSnackBar(
-                          const SnackBar(
-                            content: Text('Added to cart'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
-                    },
-                  ),
-                ),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(child: _InfoColumn(item: item)),
               ],
             ),
           ),
@@ -81,8 +87,8 @@ class _ImageBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const size = 96.0;
-    const radius = BorderRadius.all(Radius.circular(10));
+    const size = CatalogCard._imageSize;
+    const radius = BorderRadius.all(Radius.circular(AppRadius.md));
     final url = imageUrl;
 
     if (url != null && url.isNotEmpty) {
@@ -93,46 +99,45 @@ class _ImageBox extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.contain,
-          placeholder: (_, _) => _placeholder(size),
-          errorWidget: (_, _, _) => _placeholder(size),
+          placeholder: (_, _) => const AppImagePlaceholder(
+            width: size,
+            height: size,
+            borderRadius: radius,
+          ),
+          errorWidget: (_, _, _) => const AppImagePlaceholder(
+            width: size,
+            height: size,
+            borderRadius: radius,
+          ),
         ),
       );
     }
-    return _placeholder(size);
-  }
-
-  Widget _placeholder(double size) {
-    return Container(
+    return const AppImagePlaceholder(
       width: size,
       height: size,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceDim,
-        borderRadius: BorderRadius.all(Radius.circular(10)),
-      ),
-      child: const Icon(
-        Icons.image_outlined,
-        color: AppColors.textTertiary,
-        size: 28,
-      ),
+      borderRadius: radius,
     );
   }
 }
 
 class _InfoColumn extends StatelessWidget {
   final CatalogItemEntity item;
-  final VoidCallback onAddToCart;
 
-  const _InfoColumn({required this.item, required this.onAddToCart});
+  const _InfoColumn({required this.item});
 
   @override
   Widget build(BuildContext context) {
-    final badgeText = item.badge?.trim();
-    final hasBadge = badgeText != null && badgeText.isNotEmpty;
+    final mark = resolveDisplayMark(item.badge);
+    final stock = availabilityText(quantity: item.quantity);
+    final stockColor = availabilityColor(stock);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (hasBadge) ...[_Badge(text: badgeText), const SizedBox(height: 4)],
+        if (mark != null) ...[
+          _Badge(mark: mark),
+          const SizedBox(height: AppSpacing.xs),
+        ],
         Text(
           item.title,
           maxLines: 2,
@@ -144,72 +149,90 @@ class _InfoColumn extends StatelessWidget {
             height: 1.3,
           ),
         ),
-        if (item.brand != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            item.brand!,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
-        if (_hasSubline) ...[
-          const SizedBox(height: 2),
-          Text(
-            _subline,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, color: AppColors.textTertiary),
-          ),
-        ],
-        const SizedBox(height: 6),
+        const SizedBox(height: 2),
+        _MetaLine(
+          brand: item.brand,
+          stock: stock,
+          stockColor: stockColor,
+        ),
+        const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
             Expanded(
               child: _PriceRow(price: item.price, oldPrice: item.oldPrice),
             ),
-            _AddButton(onTap: onAddToCart),
+            _CartControls(item: item),
           ],
         ),
       ],
     );
   }
+}
 
-  bool get _hasSubline =>
-      (item.edition?.isNotEmpty ?? false) ||
-      (item.modification?.isNotEmpty ?? false);
+class _MetaLine extends StatelessWidget {
+  final String? brand;
+  final String stock;
+  final Color stockColor;
 
-  String get _subline {
-    final parts = <String>[
-      if (item.edition?.isNotEmpty ?? false) item.edition!,
-      if (item.modification?.isNotEmpty ?? false) item.modification!,
-    ];
-    return parts.join(' · ');
+  const _MetaLine({
+    this.brand,
+    required this.stock,
+    required this.stockColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (brand != null && brand!.isNotEmpty) ...[
+          Flexible(
+            child: Text(
+              brand!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+          const Text(
+            ' · ',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ],
+        Text(
+          stock,
+          style: TextStyle(fontSize: 10, color: stockColor),
+        ),
+      ],
+    );
   }
 }
 
 class _Badge extends StatelessWidget {
-  final String text;
+  final String mark;
 
-  const _Badge({required this.text});
+  const _Badge({required this.mark});
 
   @override
   Widget build(BuildContext context) {
+    final style = badgeStyleForMark(mark);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.badgeSurface,
-        borderRadius: BorderRadius.circular(4),
+        color: style.background,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
+        mark.toUpperCase(),
+        style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: AppColors.badge,
+          color: style.foreground,
           letterSpacing: 0.5,
         ),
       ),
@@ -237,18 +260,17 @@ class _PriceRow extends StatelessWidget {
         Text(
           formatted,
           style: const TextStyle(
-            fontSize: 15,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
             color: AppColors.textPrimary,
           ),
         ),
         if (showOld) ...[
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             PriceFormatter.formatRub(oldPrice),
             style: const TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w400,
               color: AppColors.priceOld,
               decoration: TextDecoration.lineThrough,
               decorationColor: AppColors.priceOld,
@@ -260,23 +282,148 @@ class _PriceRow extends StatelessWidget {
   }
 }
 
-class _AddButton extends StatelessWidget {
+/// Per-item cart controls using BlocSelector for isolated rebuilds.
+class _CartControls extends StatelessWidget {
+  final CatalogItemEntity item;
+
+  const _CartControls({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final cubit = sl<CartCubit>();
+    return BlocProvider.value(
+      value: cubit,
+      child: BlocSelector<CartCubit, CartState, int>(
+        selector: (state) => state.quantityOf(item.id),
+        builder: (context, quantity) {
+          if (quantity == 0) {
+            return _AddButton(
+              onTap: () => cubit.addItem(cartItemFromCatalog(item)),
+            );
+          }
+          return _QuantityChip(
+            quantity: quantity,
+            onIncrement: () => cubit.incrementQuantity(item.id),
+            onDecrement: () => cubit.decrementQuantity(item.id),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AddButton extends StatefulWidget {
   final VoidCallback onTap;
 
   const _AddButton({required this.onTap});
 
   @override
+  State<_AddButton> createState() => _AddButtonState();
+}
+
+class _AddButtonState extends State<_AddButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.8), weight: 40),
+      TweenSequenceItem(tween: Tween(begin: 0.8, end: 1.0), weight: 60),
+    ]).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onTap() {
+    HapticFeedback.lightImpact();
+    _controller.forward(from: 0);
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: AppColors.seed.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+    return GestureDetector(
+      onTap: _onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedBuilder(
+        animation: _scale,
+        builder: (context, child) => Transform.scale(
+          scale: _scale.value,
+          child: child,
         ),
-        child: Icon(Icons.add_shopping_cart, size: 18, color: AppColors.seed),
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.seed.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
+          child: Icon(Icons.add_shopping_cart, size: 18, color: AppColors.seed),
+        ),
+      ),
+    );
+  }
+}
+
+class _QuantityChip extends StatelessWidget {
+  final int quantity;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
+
+  const _QuantityChip({
+    required this.quantity,
+    required this.onIncrement,
+    required this.onDecrement,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.seed.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _chipButton(Icons.remove, onDecrement),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Text(
+              '$quantity',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.seed,
+              ),
+            ),
+          ),
+          _chipButton(Icons.add, onIncrement),
+        ],
+      ),
+    );
+  }
+
+  Widget _chipButton(IconData icon, VoidCallback onTap) {
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Icon(icon, size: 16, color: AppColors.seed),
       ),
     );
   }

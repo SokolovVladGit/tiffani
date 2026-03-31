@@ -126,14 +126,11 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
   Future<List<String>> getAvailableBrands() async {
     _logger.d('getAvailableBrands');
     try {
-      final response = await _client
-          .from(_table)
-          .select('brand')
-          .eq('is_active', true);
-      return _extractDistinct(response, 'brand');
-    } catch (e) {
-      _logger.e('getAvailableBrands failed: $e');
-      rethrow;
+      final response = await _client.rpc('get_distinct_brands');
+      return _castStringList(response);
+    } on PostgrestException catch (e) {
+      _logger.w('RPC failed, using fallback: get_distinct_brands — $e');
+      return _getDistinctColumn('brand');
     }
   }
 
@@ -141,14 +138,11 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
   Future<List<String>> getAvailableCategories() async {
     _logger.d('getAvailableCategories');
     try {
-      final response = await _client
-          .from(_table)
-          .select('category')
-          .eq('is_active', true);
-      return _extractDistinct(response, 'category');
-    } catch (e) {
-      _logger.e('getAvailableCategories failed: $e');
-      rethrow;
+      final response = await _client.rpc('get_distinct_categories');
+      return _castStringList(response);
+    } on PostgrestException catch (e) {
+      _logger.w('RPC failed, using fallback: get_distinct_categories — $e');
+      return _getDistinctColumn('category');
     }
   }
 
@@ -156,13 +150,29 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
   Future<List<String>> getAvailableMarks() async {
     _logger.d('getAvailableMarks');
     try {
+      final response = await _client.rpc('get_distinct_marks');
+      return _castStringList(response);
+    } on PostgrestException catch (e) {
+      _logger.w('RPC failed, using fallback: get_distinct_marks — $e');
+      return _getDistinctColumn('mark');
+    }
+  }
+
+  Future<List<String>> _getDistinctColumn(String column) async {
+    try {
       final response = await _client
           .from(_table)
-          .select('mark')
+          .select(column)
           .eq('is_active', true);
-      return _extractDistinct(response, 'mark');
+      return response
+          .map((r) => (r[column] as String?)?.trim())
+          .where((v) => v != null && v.isNotEmpty)
+          .cast<String>()
+          .toSet()
+          .toList()
+        ..sort();
     } catch (e) {
-      _logger.e('getAvailableMarks failed: $e');
+      _logger.e('_getDistinctColumn($column) fallback failed: $e');
       rethrow;
     }
   }
@@ -233,17 +243,85 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
     };
   }
 
-  List<String> _extractDistinct(
-    List<Map<String, dynamic>> rows,
-    String key,
-  ) {
-    final values = rows
-        .map((r) => (r[key] as String?)?.trim())
-        .where((v) => v != null && v.isNotEmpty)
-        .cast<String>()
-        .toSet()
-        .toList()
-      ..sort();
-    return values;
+  @override
+  Future<List<CatalogItemDto>> getSimilarProducts({
+    required String excludeId,
+    String? brand,
+    String? category,
+    int limit = 10,
+  }) async {
+    _logger.d('getSimilarProducts excludeId=$excludeId brand=$brand category=$category');
+    try {
+      final collected = <String, CatalogItemDto>{};
+      final hasBrand = brand != null && brand.isNotEmpty;
+      final hasCategory = category != null && category.isNotEmpty;
+
+      if (hasBrand && hasCategory) {
+        final response = await _client
+            .from(_table)
+            .select()
+            .eq('is_active', true)
+            .eq('brand', brand)
+            .eq('category', category)
+            .neq('variant_id', excludeId)
+            .order('title', ascending: true)
+            .limit(limit);
+        for (final row in response) {
+          final dto = CatalogItemDto.fromMap(row);
+          collected[dto.variantId] = dto;
+        }
+      }
+
+      if (collected.length < limit && hasCategory) {
+        final remaining = limit - collected.length;
+        final response = await _client
+            .from(_table)
+            .select()
+            .eq('is_active', true)
+            .eq('category', category)
+            .neq('variant_id', excludeId)
+            .order('title', ascending: true)
+            .limit(remaining + collected.length);
+        for (final row in response) {
+          final dto = CatalogItemDto.fromMap(row);
+          if (!collected.containsKey(dto.variantId)) {
+            collected[dto.variantId] = dto;
+            if (collected.length >= limit) break;
+          }
+        }
+      }
+
+      if (collected.length < limit && hasBrand) {
+        final remaining = limit - collected.length;
+        final response = await _client
+            .from(_table)
+            .select()
+            .eq('is_active', true)
+            .eq('brand', brand)
+            .neq('variant_id', excludeId)
+            .order('title', ascending: true)
+            .limit(remaining + collected.length);
+        for (final row in response) {
+          final dto = CatalogItemDto.fromMap(row);
+          if (!collected.containsKey(dto.variantId)) {
+            collected[dto.variantId] = dto;
+            if (collected.length >= limit) break;
+          }
+        }
+      }
+
+      _logger.d('getSimilarProducts: ${collected.length} items');
+      return collected.values.toList();
+    } catch (e) {
+      _logger.e('getSimilarProducts failed: $e');
+      rethrow;
+    }
+  }
+
+  List<String> _castStringList(dynamic response) {
+    if (response is List) {
+      return response.cast<String>();
+    }
+    return [];
   }
 }

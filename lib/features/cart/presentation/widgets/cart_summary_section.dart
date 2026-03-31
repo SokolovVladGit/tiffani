@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 
 class CartSummarySection extends StatelessWidget {
@@ -18,20 +20,21 @@ class CartSummarySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        AppSpacing.lg,
       ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: AppDecorations.cardSoft(),
       child: Column(
         children: [
           _row('Items', '$totalItems'),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           _row('Quantity', '$totalQuantity'),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 10),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Divider(),
           ),
           _row('Total', PriceFormatter.formatRub(totalPrice), bold: true),

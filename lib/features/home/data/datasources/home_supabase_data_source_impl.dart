@@ -2,8 +2,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/logger_service.dart';
 import '../../../catalog/data/dto/catalog_item_dto.dart';
-import '../../../catalog/data/mappers/catalog_item_mapper.dart';
-import '../../../catalog/domain/entities/catalog_item_entity.dart';
 import 'home_supabase_data_source.dart';
 
 class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
@@ -15,7 +13,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
   const HomeSupabaseDataSourceImpl(this._client, this._logger);
 
   @override
-  Future<List<CatalogItemEntity>> getNewItems({int limit = 10}) async {
+  Future<List<CatalogItemDto>> getNewItems({int limit = 10}) async {
     _logger.d('getNewItems limit=$limit');
     try {
       final response = await _client
@@ -23,6 +21,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
           .select()
           .eq('is_active', true)
           .eq('mark', 'NEW')
+          .order('title', ascending: true)
           .limit(limit);
       final items = _mapRows(response);
       _logger.d('getNewItems success: ${items.length}');
@@ -34,7 +33,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
   }
 
   @override
-  Future<List<CatalogItemEntity>> getSaleItems({int limit = 10}) async {
+  Future<List<CatalogItemDto>> getSaleItems({int limit = 10}) async {
     _logger.d('getSaleItems limit=$limit');
     try {
       final response = await _client
@@ -42,6 +41,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
           .select()
           .eq('is_active', true)
           .not('old_price', 'is', null)
+          .order('title', ascending: true)
           .limit(limit);
       final items = _mapRows(response);
       _logger.d('getSaleItems success: ${items.length}');
@@ -53,7 +53,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
   }
 
   @override
-  Future<List<CatalogItemEntity>> getHitItems({int limit = 10}) async {
+  Future<List<CatalogItemDto>> getHitItems({int limit = 10}) async {
     _logger.d('getHitItems limit=$limit');
     try {
       final response = await _client
@@ -61,6 +61,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
           .select()
           .eq('is_active', true)
           .eq('mark', 'ХИТ')
+          .order('title', ascending: true)
           .limit(limit);
       final items = _mapRows(response);
       _logger.d('getHitItems success: ${items.length}');
@@ -71,7 +72,7 @@ class HomeSupabaseDataSourceImpl implements HomeSupabaseDataSource {
     }
   }
 
-  List<CatalogItemEntity> _mapRows(List<Map<String, dynamic>> rows) {
-    return rows.map((r) => CatalogItemDto.fromMap(r).toEntity()).toList();
+  List<CatalogItemDto> _mapRows(List<Map<String, dynamic>> rows) {
+    return rows.map(CatalogItemDto.fromMap).toList();
   }
 }

@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_failure_view.dart';
 import '../cubit/brands_cubit.dart';
+import '../widgets/brands_list_skeleton.dart';
 
 class BrandsPage extends StatefulWidget {
   const BrandsPage({super.key});
@@ -37,17 +40,16 @@ class _BrandsPageState extends State<BrandsPage> {
         appBar: AppBar(title: const Text('Brands')),
         body: BlocBuilder<BrandsCubit, BrandsState>(
           builder: (context, state) {
+            final Widget child;
             if (state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (state.errorMessage != null) {
-              return _ErrorView(
+              child = const BrandsListSkeleton();
+            } else if (state.errorMessage != null) {
+              child = AppFailureView(
                 message: state.errorMessage!,
                 onRetry: _cubit.loadBrands,
               );
-            }
-            if (state.brands.isEmpty) {
-              return const Center(
+            } else if (state.brands.isEmpty) {
+              child = const Center(
                 child: Text(
                   'No brands available',
                   style: TextStyle(
@@ -56,8 +58,13 @@ class _BrandsPageState extends State<BrandsPage> {
                   ),
                 ),
               );
+            } else {
+              child = _BrandsList(brands: state.brands);
             }
-            return _BrandsList(brands: state.brands);
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: child,
+            );
           },
         ),
       ),
@@ -76,7 +83,7 @@ class _BrandsList extends StatelessWidget {
     final letters = grouped.keys.toList();
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
       itemCount: letters.length,
       itemBuilder: (context, index) {
         final letter = letters[index];
@@ -85,7 +92,12 @@ class _BrandsList extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.lg,
+                AppSpacing.xs,
+              ),
               child: Text(
                 letter,
                 style: const TextStyle(
@@ -125,39 +137,5 @@ class _BrandsList extends StatelessWidget {
     final sorted = map.entries.toList()
       ..sort((a, b) => a.key.compareTo(b.key));
     return Map.fromEntries(sorted);
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorView({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 48,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
-          ],
-        ),
-      ),
-    );
   }
 }

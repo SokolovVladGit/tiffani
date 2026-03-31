@@ -46,10 +46,10 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         hitItems: results[2],
         errorMessage: null,
       ));
-    } catch (e) {
+    } catch (_) {
       emit(state.copyWith(
         status: HomeStatus.failure,
-        errorMessage: '$e',
+        errorMessage: 'Something went wrong. Please try again.',
       ));
     }
   }

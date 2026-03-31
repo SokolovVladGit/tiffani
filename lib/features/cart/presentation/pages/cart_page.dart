@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_failure_view.dart';
 import '../../domain/entities/request_form_entity.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/cart_item_tile.dart';
+import '../widgets/cart_list_skeleton.dart';
 import '../widgets/cart_summary_section.dart';
 import '../widgets/empty_cart_view.dart';
 
@@ -24,6 +31,12 @@ class _CartPageState extends State<CartPage> {
   final _commentController = TextEditingController();
 
   @override
+  void initState() {
+    super.initState();
+    sl<CartCubit>().loadCart();
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
@@ -31,10 +44,23 @@ class _CartPageState extends State<CartPage> {
     super.dispose();
   }
 
+  void _handleSubmit(CartCubit cubit) {
+    if (!_formKey.currentState!.validate()) return;
+    cubit.submitOrderRequest(
+      RequestFormEntity(
+        name: _nameController.text,
+        phone: _phoneController.text,
+        comment: _commentController.text.isEmpty
+            ? null
+            : _commentController.text,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocProvider.value(
-      value: sl<CartCubit>()..loadCart(),
+      value: sl<CartCubit>(),
       child: BlocListener<CartCubit, CartState>(
         listenWhen: (prev, curr) =>
             prev.submissionSuccess != curr.submissionSuccess ||
@@ -46,11 +72,7 @@ class _CartPageState extends State<CartPage> {
             _nameController.clear();
             _phoneController.clear();
             _commentController.clear();
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                const SnackBar(content: Text('Request sent successfully')),
-              );
+            context.go(RouteNames.requestSuccess);
           } else if (!state.isSubmitting && state.errorMessage != null) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
@@ -66,6 +88,8 @@ class _CartPageState extends State<CartPage> {
             title: const Text('Cart'),
             actions: [
               BlocBuilder<CartCubit, CartState>(
+                buildWhen: (prev, curr) =>
+                    prev.status != curr.status || prev.isEmpty != curr.isEmpty,
                 builder: (context, state) {
                   if (state.status != CartStatus.success || state.isEmpty) {
                     return const SizedBox.shrink();
@@ -83,6 +107,21 @@ class _CartPageState extends State<CartPage> {
             nameController: _nameController,
             phoneController: _phoneController,
             commentController: _commentController,
+          ),
+          bottomNavigationBar: BlocBuilder<CartCubit, CartState>(
+            buildWhen: (prev, curr) =>
+                prev.status != curr.status ||
+                prev.isEmpty != curr.isEmpty ||
+                prev.isSubmitting != curr.isSubmitting,
+            builder: (context, state) {
+              if (state.status != CartStatus.success || state.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return _StickyBottomBar(
+                isSubmitting: state.isSubmitting,
+                onSubmit: () => _handleSubmit(context.read<CartCubit>()),
+              );
+            },
           ),
         ),
       ),
@@ -107,12 +146,12 @@ class _CartBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, state) {
-        return switch (state.status) {
-          CartStatus.initial || CartStatus.loading => const Center(
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          CartStatus.failure => _FailureView(
+        final child = switch (state.status) {
+          CartStatus.initial || CartStatus.loading =>
+            const CartListSkeleton(),
+          CartStatus.failure => AppFailureView(
             message: state.errorMessage ?? 'Failed to load cart',
+            onRetry: () => context.read<CartCubit>().loadCart(),
           ),
           CartStatus.success when state.isEmpty => const EmptyCartView(),
           CartStatus.success => _CartContent(
@@ -123,6 +162,10 @@ class _CartBody extends StatelessWidget {
             commentController: commentController,
           ),
         };
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: child,
+        );
       },
     );
   }
@@ -147,7 +190,10 @@ class _CartContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final cubit = context.read<CartCubit>();
     return ListView(
-      padding: const EdgeInsets.only(top: 4, bottom: 32),
+      padding: const EdgeInsets.only(
+        top: AppSpacing.xs,
+        bottom: AppSpacing.lg,
+      ),
       children: [
         ...state.items.map(
           (item) => CartItemTile(
@@ -167,19 +213,6 @@ class _CartContent extends StatelessWidget {
           nameController: nameController,
           phoneController: phoneController,
           commentController: commentController,
-          isSubmitting: state.isSubmitting,
-          onSubmit: () {
-            if (!formKey.currentState!.validate()) return;
-            cubit.submitOrderRequest(
-              RequestFormEntity(
-                name: nameController.text,
-                phone: phoneController.text,
-                comment: commentController.text.isEmpty
-                    ? null
-                    : commentController.text,
-              ),
-            );
-          },
         ),
       ],
     );
@@ -191,28 +224,25 @@ class _RequestForm extends StatelessWidget {
   final TextEditingController nameController;
   final TextEditingController phoneController;
   final TextEditingController commentController;
-  final bool isSubmitting;
-  final VoidCallback onSubmit;
 
   const _RequestForm({
     required this.formKey,
     required this.nameController,
     required this.phoneController,
     required this.commentController,
-    required this.isSubmitting,
-    required this.onSubmit,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 0.5),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.xs,
+        AppSpacing.lg,
+        0,
       ),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: AppDecorations.cardSoft(radius: AppRadius.lg),
       child: Form(
         key: formKey,
         child: Column(
@@ -226,7 +256,7 @@ class _RequestForm extends StatelessWidget {
                 color: AppColors.textPrimary,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: nameController,
               decoration: const InputDecoration(hintText: 'Your name'),
@@ -234,7 +264,7 @@ class _RequestForm extends StatelessWidget {
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Name is required' : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: phoneController,
               decoration: const InputDecoration(hintText: 'Phone number'),
@@ -243,30 +273,13 @@ class _RequestForm extends StatelessWidget {
               validator: (v) =>
                   (v == null || v.trim().isEmpty) ? 'Phone is required' : null,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: AppSpacing.md),
             TextFormField(
               controller: commentController,
               decoration: const InputDecoration(hintText: 'Comment (optional)'),
               maxLines: 3,
               textInputAction: TextInputAction.done,
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: isSubmitting ? null : onSubmit,
-                child: isSubmitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Send request'),
-              ),
-            ),
           ],
         ),
       ),
@@ -274,38 +287,70 @@ class _RequestForm extends StatelessWidget {
   }
 }
 
-class _FailureView extends StatelessWidget {
-  final String message;
+class _StickyBottomBar extends StatelessWidget {
+  final bool isSubmitting;
+  final VoidCallback onSubmit;
 
-  const _FailureView({required this.message});
+  const _StickyBottomBar({
+    required this.isSubmitting,
+    required this.onSubmit,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline_rounded,
-              size: 48,
-              color: AppColors.textTertiary,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => context.read<CartCubit>().loadCart(),
-              child: const Text('Retry'),
-            ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.lg,
+            AppSpacing.md,
+            AppSpacing.lg,
+            AppSpacing.sm,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Submit a request and our manager will contact you to confirm the order.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: isSubmitting ? null : onSubmit,
+                  child: isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Send request'),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+

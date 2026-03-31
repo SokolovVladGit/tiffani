@@ -7,13 +7,17 @@ import '../data/datasources/catalog_supabase_data_source_impl.dart';
 import '../data/repositories/catalog_repository_impl.dart';
 import '../domain/repositories/catalog_repository.dart';
 import '../domain/usecases/get_all_brands_use_case.dart';
+import '../domain/usecases/get_available_categories_use_case.dart';
+import '../domain/usecases/get_available_marks_use_case.dart';
 import '../domain/usecases/get_catalog_item_by_variant_id_use_case.dart';
 import '../domain/usecases/get_catalog_page_use_case.dart';
+import '../domain/usecases/get_similar_products_use_case.dart';
 import '../domain/usecases/search_catalog_use_case.dart';
 import '../presentation/bloc/catalog_bloc.dart';
 import '../presentation/cubit/brands_cubit.dart';
 import '../presentation/cubit/catalog_filter_cubit.dart';
 import '../presentation/cubit/filter_cubit.dart';
+import '../presentation/cubit/similar_products_cubit.dart';
 
 Future<void> initCatalogDependencies() async {
   sl.registerLazySingleton<CatalogSupabaseDataSource>(
@@ -34,14 +38,22 @@ Future<void> initCatalogDependencies() async {
   sl.registerLazySingleton(() => SearchCatalogUseCase(sl()));
   sl.registerLazySingleton(() => GetCatalogItemByVariantIdUseCase(sl()));
   sl.registerLazySingleton(() => GetAllBrandsUseCase(sl()));
+  sl.registerLazySingleton(() => GetAvailableCategoriesUseCase(sl()));
+  sl.registerLazySingleton(() => GetAvailableMarksUseCase(sl()));
+  sl.registerLazySingleton(() => GetSimilarProductsUseCase(sl()));
 
   sl.registerFactory(
     () => CatalogBloc(sl<GetCatalogPageUseCase>(), sl<SearchCatalogUseCase>()),
   );
   sl.registerLazySingleton(
-    () => CatalogFilterCubit(sl<CatalogRepository>()),
+    () => CatalogFilterCubit(
+      sl<GetAllBrandsUseCase>(),
+      sl<GetAvailableCategoriesUseCase>(),
+      sl<GetAvailableMarksUseCase>(),
+    ),
   );
 
   sl.registerFactory(() => FilterCubit());
   sl.registerFactory(() => BrandsCubit(sl<GetAllBrandsUseCase>()));
+  sl.registerFactory(() => SimilarProductsCubit(sl<GetSimilarProductsUseCase>()));
 }

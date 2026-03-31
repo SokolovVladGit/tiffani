@@ -92,4 +92,20 @@ class CatalogRepositoryImpl implements CatalogRepository {
   @override
   Future<List<String>> getAvailableMarks() =>
       _dataSource.getAvailableMarks();
+
+  @override
+  Future<List<CatalogItemEntity>> getSimilarProducts({
+    required String excludeId,
+    String? brand,
+    String? category,
+    int limit = 10,
+  }) async {
+    final dtos = await _dataSource.getSimilarProducts(
+      excludeId: excludeId,
+      brand: brand,
+      category: category,
+      limit: limit,
+    );
+    return dtos.map((d) => d.toEntity()).toList();
+  }
 }
