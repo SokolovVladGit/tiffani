@@ -9,7 +9,8 @@ import '../../features/catalog/presentation/pages/catalog_details_page.dart';
 import '../../features/catalog/presentation/pages/catalog_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
-import '../../features/stores_delivery/presentation/pages/stores_delivery_page.dart';
+import '../../features/info/presentation/pages/info_page.dart';
+import 'catalog_filter_payload.dart';
 import 'product_details_payload.dart';
 import 'route_names.dart';
 
@@ -43,7 +44,7 @@ class AppRouter {
             routes: [
               GoRoute(
                 path: RouteNames.info,
-                builder: (context, state) => const StoresDeliveryPage(),
+                builder: (context, state) => const InfoPage(),
               ),
             ],
           ),
@@ -88,6 +89,19 @@ class AppRouter {
       GoRoute(
         path: RouteNames.requestSuccess,
         builder: (context, state) => const RequestSuccessPage(),
+      ),
+      GoRoute(
+        path: RouteNames.filteredCatalog,
+        builder: (context, state) {
+          final payload = state.extra! as CatalogFilterPayload;
+          return CatalogPage(
+            title: payload.title,
+            initialBrand: payload.brand,
+            initialCategory: payload.category,
+            initialMark: payload.mark,
+            initialSaleOnly: payload.saleOnly,
+          );
+        },
       ),
     ],
   );

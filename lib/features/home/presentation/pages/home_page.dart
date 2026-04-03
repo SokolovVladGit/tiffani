@@ -5,19 +5,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/router/catalog_filter_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../catalog/domain/entities/catalog_item_entity.dart';
 import '../../../favorites/presentation/cubit/favorites_cubit.dart';
 import '../../../favorites/presentation/cubit/favorites_state.dart';
+import '../../../articles/presentation/cubit/home_articles_cubit.dart';
+import '../../../articles/presentation/widgets/home_recommendations_section.dart';
 import '../../../recently_viewed/presentation/widgets/recently_viewed_section.dart';
 import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
 import '../cubit/top_brands_cubit.dart';
-import '../widgets/home_horizontal_item_card.dart';
+import '../home_strings.dart';
 import '../widgets/home_page_skeleton.dart';
+import '../widgets/home_section.dart';
+import '../widgets/home_contacts_section.dart';
 import '../widgets/top_brands_section.dart';
 
 class HomePage extends StatefulWidget {
@@ -30,18 +34,21 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final HomeBloc _bloc;
   late final TopBrandsCubit _topBrandsCubit;
+  late final HomeArticlesCubit _articlesCubit;
 
   @override
   void initState() {
     super.initState();
     _bloc = sl<HomeBloc>()..add(const HomeStarted());
     _topBrandsCubit = sl<TopBrandsCubit>()..load();
+    _articlesCubit = sl<HomeArticlesCubit>()..load();
   }
 
   @override
   void dispose() {
     _bloc.close();
     _topBrandsCubit.close();
+    _articlesCubit.close();
     super.dispose();
   }
 
@@ -51,6 +58,7 @@ class _HomePageState extends State<HomePage> {
       providers: [
         BlocProvider.value(value: _bloc),
         BlocProvider.value(value: _topBrandsCubit),
+        BlocProvider.value(value: _articlesCubit),
       ],
       child: const Scaffold(
         body: _HomeBody(),
@@ -63,15 +71,8 @@ class _HomePageState extends State<HomePage> {
 // Body — always renders hero; content below depends on bloc state
 // ---------------------------------------------------------------------------
 
-class _HomeBody extends StatefulWidget {
+class _HomeBody extends StatelessWidget {
   const _HomeBody();
-
-  @override
-  State<_HomeBody> createState() => _HomeBodyState();
-}
-
-class _HomeBodyState extends State<_HomeBody> {
-  int _selectedTab = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -91,13 +92,8 @@ class _HomeBodyState extends State<_HomeBody> {
                     const HomeContentSkeleton(),
                   HomeStatus.failure => _FailureView(
                       message:
-                          state.errorMessage ?? 'Something went wrong'),
-                  HomeStatus.success => _SuccessContent(
-                      state: state,
-                      selectedTab: _selectedTab,
-                      onTabChanged: (i) =>
-                          setState(() => _selectedTab = i),
-                    ),
+                          state.errorMessage ?? HomeStrings.genericError),
+                  HomeStatus.success => _SuccessContent(state: state),
                 };
                 return AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
@@ -198,7 +194,7 @@ class _HeroSection extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  'Beauty Store',
+                  HomeStrings.heroSubtitle,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
@@ -260,165 +256,60 @@ class _FavoritesButton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Success content — discovery tabs + product section + brands + recent
+// Success content — category chips + product sections + brands + recent
 // ---------------------------------------------------------------------------
 
 class _SuccessContent extends StatelessWidget {
   final HomeState state;
-  final int selectedTab;
-  final ValueChanged<int> onTabChanged;
 
-  const _SuccessContent({
-    required this.state,
-    required this.selectedTab,
-    required this.onTabChanged,
-  });
-
-  static const _tabLabels = ['New', 'Best', 'Sale', 'Hair'];
-
-  List<CatalogItemEntity> get _tabItems {
-    return switch (selectedTab) {
-      0 => state.newItems,
-      1 => state.hitItems,
-      2 => state.saleItems,
-      3 => state.newItems,
-      _ => state.newItems,
-    };
-  }
+  const _SuccessContent({required this.state});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _DiscoveryTabs(
-          labels: _tabLabels,
-          selectedIndex: selectedTab,
-          onSelect: onTabChanged,
+        HomeSection(
+          title: HomeStrings.newSection,
+          items: state.newItems,
+          actionText: HomeStrings.seeAll,
+          onAction: () => context.push(
+            RouteNames.filteredCatalog,
+            extra: const CatalogFilterPayload(
+              title: HomeStrings.newSection,
+              mark: 'NEW',
+            ),
+          ),
         ),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: _tabItems.isNotEmpty
-              ? SizedBox(
-                  key: ValueKey(selectedTab),
-                  height: 228,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    itemCount: _tabItems.length,
-                    separatorBuilder: (_, _) =>
-                        const SizedBox(width: AppSpacing.md),
-                    itemBuilder: (_, index) {
-                      final item = _tabItems[index];
-                      final tag =
-                          'home-disc-${_tabLabels[selectedTab].toLowerCase()}-${item.id}';
-                      return HomeHorizontalItemCard(
-                        item: item,
-                        heroTag: tag,
-                      );
-                    },
-                  ),
-                )
-              : SizedBox(
-                  key: ValueKey(selectedTab),
-                  height: 120,
-                  child: const Center(
-                    child: Text(
-                      'No products in this category',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
+        HomeSection(
+          title: HomeStrings.bestsellersSection,
+          items: state.hitItems,
+          actionText: HomeStrings.seeAll,
+          onAction: () => context.push(
+            RouteNames.filteredCatalog,
+            extra: const CatalogFilterPayload(
+              title: HomeStrings.bestsellersSection,
+              mark: 'ХИТ',
+            ),
+          ),
         ),
+        HomeSection(
+          title: HomeStrings.saleSection,
+          items: state.saleItems,
+          actionText: HomeStrings.seeAll,
+          onAction: () => context.push(
+            RouteNames.filteredCatalog,
+            extra: const CatalogFilterPayload(
+              title: HomeStrings.saleSection,
+              saleOnly: true,
+            ),
+          ),
+        ),
+        const HomeRecommendationsSection(),
         const TopBrandsSection(),
         const RecentlyViewedSection(),
-        const SizedBox(height: AppSpacing.xxxl),
+        const HomeContactsSection(),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Discovery tabs — full-width segmented control
-// ---------------------------------------------------------------------------
-
-class _DiscoveryTabs extends StatelessWidget {
-  final List<String> labels;
-  final int selectedIndex;
-  final ValueChanged<int> onSelect;
-
-  const _DiscoveryTabs({
-    required this.labels,
-    required this.selectedIndex,
-    required this.onSelect,
-  });
-
-  static const double _height = 40;
-  static const double _outerRadius = 12;
-  static const double _innerRadius = 10;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.xxl,
-        AppSpacing.lg,
-        AppSpacing.lg,
-      ),
-      child: Container(
-        height: _height,
-        decoration: BoxDecoration(
-          color: AppColors.surfaceDim,
-          borderRadius: BorderRadius.circular(_outerRadius),
-        ),
-        padding: const EdgeInsets.all(3),
-        child: Row(
-          children: List.generate(labels.length, (i) {
-            final isSelected = i == selectedIndex;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onSelect(i),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeInOut,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isSelected ? AppColors.seed : Colors.transparent,
-                    borderRadius: BorderRadius.circular(_innerRadius),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: AppColors.seed.withValues(alpha: 0.25),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    labels[i],
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected
-                          ? Colors.white
-                          : AppColors.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }),
-        ),
-      ),
     );
   }
 }
@@ -457,7 +348,7 @@ class _FailureView extends StatelessWidget {
               onPressed: () {
                 context.read<HomeBloc>().add(const HomeRefreshed());
               },
-              child: const Text('Retry'),
+              child: const Text(HomeStrings.retry),
             ),
           ],
         ),

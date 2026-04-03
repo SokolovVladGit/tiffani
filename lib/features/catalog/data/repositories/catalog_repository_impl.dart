@@ -2,9 +2,11 @@ import '../../../../core/services/logger_service.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import '../../domain/entities/catalog_page_result.dart';
 import '../../domain/entities/catalog_sort_option.dart';
+import '../../domain/entities/product_image_entity.dart';
 import '../../domain/repositories/catalog_repository.dart';
 import '../datasources/catalog_supabase_data_source.dart';
 import '../mappers/catalog_item_mapper.dart';
+import '../mappers/product_image_mapper.dart';
 
 class CatalogRepositoryImpl implements CatalogRepository {
   final CatalogSupabaseDataSource _dataSource;
@@ -21,6 +23,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) async {
     _logger.d('CatalogRepositoryImpl.getCatalogPage');
     final result = await _dataSource.getCatalogPage(
@@ -31,6 +34,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
       mark: mark,
       sortOption: sortOption,
       attributeFilters: attributeFilters,
+      saleOnly: saleOnly,
     );
     return CatalogPageResult(
       items: result.items.map((d) => d.toEntity()).toList(),
@@ -48,6 +52,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) async {
     final result = await _dataSource.searchCatalog(
       query: query,
@@ -58,6 +63,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
       mark: mark,
       sortOption: sortOption,
       attributeFilters: attributeFilters,
+      saleOnly: saleOnly,
     );
     return CatalogPageResult(
       items: result.items.map((d) => d.toEntity()).toList(),
@@ -106,6 +112,13 @@ class CatalogRepositoryImpl implements CatalogRepository {
       category: category,
       limit: limit,
     );
+    return dtos.map((d) => d.toEntity()).toList();
+  }
+
+  @override
+  Future<List<ProductImageEntity>> getProductImages(String productId) async {
+    _logger.d('CatalogRepositoryImpl.getProductImages');
+    final dtos = await _dataSource.getProductImages(productId);
     return dtos.map((d) => d.toEntity()).toList();
   }
 }

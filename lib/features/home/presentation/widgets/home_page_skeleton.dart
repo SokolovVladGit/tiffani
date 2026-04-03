@@ -8,6 +8,8 @@ import 'home_horizontal_item_card.dart';
 import 'top_brand_card.dart';
 
 /// Skeleton for the below-hero content area during initial load.
+///
+/// Matches the Home layout: 3 product sections → brands.
 class HomeContentSkeleton extends StatelessWidget {
   const HomeContentSkeleton({super.key});
 
@@ -16,22 +18,26 @@ class HomeContentSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTabsSkeleton(),
-        const SizedBox(height: AppSpacing.lg),
+        _buildSectionHeaderBar(width: 80),
+        const SizedBox(height: AppSpacing.md),
         _buildProductStrip(),
-        const SizedBox(height: AppSpacing.xxl),
-        _buildSectionHeaderBar(width: 120),
+        const SizedBox(height: AppSpacing.sm),
+        _buildSectionHeaderBar(width: 50),
+        const SizedBox(height: AppSpacing.md),
+        _buildProductStrip(),
+        const SizedBox(height: AppSpacing.sm),
+        _buildSectionHeaderBar(width: 65),
+        const SizedBox(height: AppSpacing.md),
+        _buildProductStrip(),
+        const SizedBox(height: AppSpacing.sm),
+        _buildSectionHeaderBar(width: 75),
         const SizedBox(height: AppSpacing.md),
         _buildBrandStrip(),
-        const SizedBox(height: AppSpacing.xxl),
-        _buildSectionHeaderBar(width: 140),
-        const SizedBox(height: AppSpacing.md),
-        _buildProductStrip(),
       ],
     );
   }
 
-  Widget _buildTabsSkeleton() {
+  Widget _buildSectionHeaderBar({required double width}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
@@ -39,19 +45,6 @@ class HomeContentSkeleton extends StatelessWidget {
         AppSpacing.lg,
         0,
       ),
-      child: Container(
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppColors.skeleton,
-          borderRadius: BorderRadius.circular(12),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionHeaderBar({required double width}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       child: Container(
         width: width,
         height: 18,

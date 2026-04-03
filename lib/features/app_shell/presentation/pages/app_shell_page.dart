@@ -16,126 +16,124 @@ class AppShellPage extends StatelessWidget {
 
   static const _iconSize = 22.0;
   static const _barHeight = 64.0;
-  static const _capsuleRadius = 26.0;
+  static const _capsuleRadius = 32.0;
+  static const _inactiveColor = Color(0xFF78736F);
+  static const _activePillColor = Color(0xFFE6D7DF);
+  static const _pillRadius = 14.0;
+
+  static const _icons = <IconData>[
+    CupertinoIcons.house,
+    CupertinoIcons.square_grid_2x2,
+    CupertinoIcons.info_circle,
+    CupertinoIcons.bag,
+  ];
+
+  static const _activeIcons = <IconData>[
+    CupertinoIcons.house_fill,
+    CupertinoIcons.square_grid_2x2_fill,
+    CupertinoIcons.info_circle_fill,
+    CupertinoIcons.bag_fill,
+  ];
+
+  static const _labels = <String>['Home', 'Catalog', 'Info', 'Cart'];
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            0,
-            AppSpacing.lg,
-            AppSpacing.sm,
-          ),
-          child: Container(
-            height: _barHeight,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceWarm,
-              borderRadius: BorderRadius.circular(_capsuleRadius),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.07),
-                  blurRadius: 14,
-                  offset: const Offset(0, -2),
+      body: Stack(
+        children: [
+          navigationShell,
+          Positioned(
+            left: AppSpacing.lg,
+            right: AppSpacing.lg,
+            bottom: bottomInset + AppSpacing.sm,
+            child: Container(
+              height: _barHeight,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFFF0E8E4), Color(0xFFECE3DE)],
                 ),
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: NavigationBarTheme(
-              data: NavigationBarThemeData(
-                labelTextStyle:
-                    WidgetStateProperty.resolveWith((states) {
-                  final isSelected =
-                      states.contains(WidgetState.selected);
-                  return TextStyle(
-                    fontSize: 11,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: isSelected
-                        ? AppColors.seed
-                        : const Color(0xFFBBBBC0),
-                  );
-                }),
+                borderRadius: BorderRadius.circular(_capsuleRadius),
               ),
+              clipBehavior: Clip.antiAlias,
               child: BlocSelector<CartCubit, CartState, int>(
                 bloc: sl<CartCubit>(),
                 selector: (state) => state.totalQuantity,
                 builder: (context, cartCount) {
-                  return NavigationBar(
-                    selectedIndex: navigationShell.currentIndex,
-                    onDestinationSelected: (index) =>
-                        navigationShell.goBranch(
-                      index,
-                      initialLocation:
-                          index == navigationShell.currentIndex,
-                    ),
-                    backgroundColor: Colors.transparent,
-                    surfaceTintColor: Colors.transparent,
-                    indicatorColor:
-                        AppColors.seed.withValues(alpha: 0.09),
-                    elevation: 0,
-                    height: _barHeight,
-                    labelBehavior:
-                        NavigationDestinationLabelBehavior.alwaysShow,
-                    destinations: [
-                      const NavigationDestination(
-                        icon: Icon(CupertinoIcons.house,
-                            size: _iconSize,
-                            color: AppColors.textTertiary),
-                        selectedIcon: Icon(CupertinoIcons.house_fill,
-                            size: _iconSize, color: AppColors.seed),
-                        label: 'Home',
-                      ),
-                      const NavigationDestination(
-                        icon: Icon(CupertinoIcons.square_grid_2x2,
-                            size: _iconSize,
-                            color: AppColors.textTertiary),
-                        selectedIcon: Icon(
-                            CupertinoIcons.square_grid_2x2_fill,
-                            size: _iconSize,
-                            color: AppColors.seed),
-                        label: 'Catalog',
-                      ),
-                      const NavigationDestination(
-                        icon: Icon(CupertinoIcons.info_circle,
-                            size: _iconSize,
-                            color: AppColors.textTertiary),
-                        selectedIcon: Icon(
-                            CupertinoIcons.info_circle_fill,
-                            size: _iconSize,
-                            color: AppColors.seed),
-                        label: 'Info',
-                      ),
-                      NavigationDestination(
-                        icon: _CartBadgeIcon(
+                  final selected = navigationShell.currentIndex;
+                  return Row(
+                    children: List.generate(4, (i) {
+                      final active = i == selected;
+                      final color =
+                          active ? AppColors.seed : _inactiveColor;
+                      final iconData =
+                          active ? _activeIcons[i] : _icons[i];
+
+                      Widget icon = Icon(
+                        iconData,
+                        size: _iconSize,
+                        color: color,
+                      );
+                      if (i == 3) {
+                        icon = _CartBadgeIcon(
                           count: cartCount,
-                          child: const Icon(CupertinoIcons.bag,
-                              size: _iconSize,
-                              color: AppColors.textTertiary),
+                          child: icon,
+                        );
+                      }
+
+                      return Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => navigationShell.goBranch(
+                            i,
+                            initialLocation: i == selected,
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? _activePillColor
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(
+                                    _pillRadius,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 4,
+                                  ),
+                                  child: icon,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _labels[i],
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: active
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: color,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        selectedIcon: _CartBadgeIcon(
-                          count: cartCount,
-                          child: const Icon(CupertinoIcons.bag_fill,
-                              size: _iconSize, color: AppColors.seed),
-                        ),
-                        label: 'Cart',
-                      ),
-                    ],
+                      );
+                    }),
                   );
                 },
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

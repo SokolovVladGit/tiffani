@@ -6,6 +6,7 @@ import '../../../../core/services/logger_service.dart';
 import '../../domain/entities/catalog_sort_option.dart';
 import '../dto/catalog_item_dto.dart';
 import '../dto/catalog_page_result_dto.dart';
+import '../dto/product_image_dto.dart';
 import 'catalog_supabase_data_source.dart';
 
 class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
@@ -25,11 +26,12 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) async {
     _logger.d('getCatalogPage from=$from to=$to');
     try {
       var query = _client.from(_table).select().eq('is_active', true);
-      query = _applyFilters(query, brand: brand, category: category, mark: mark);
+      query = _applyFilters(query, brand: brand, category: category, mark: mark, saleOnly: saleOnly);
       query = _applyAttributeFilters(query, attributeFilters);
       final response = await _applySortAndRange(query, sortOption, from, to);
       final items = response.data.map(CatalogItemDto.fromMap).toList();
@@ -51,6 +53,7 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -62,6 +65,7 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
         mark: mark,
         sortOption: sortOption,
         attributeFilters: attributeFilters,
+        saleOnly: saleOnly,
       );
     }
     _logger.d('searchCatalog query="$trimmed" from=$from to=$to');
@@ -71,7 +75,7 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
           .select()
           .eq('is_active', true)
           .ilike('title', '%$trimmed%');
-      q = _applyFilters(q, brand: brand, category: category, mark: mark);
+      q = _applyFilters(q, brand: brand, category: category, mark: mark, saleOnly: saleOnly);
       q = _applyAttributeFilters(q, attributeFilters);
       final response = await _applySortAndRange(q, sortOption, from, to);
       final items = response.data.map(CatalogItemDto.fromMap).toList();
@@ -182,11 +186,15 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
     String? brand,
     String? category,
     String? mark,
+    bool saleOnly = false,
   }) {
     var q = query;
     if (brand != null && brand.isNotEmpty) q = q.eq('brand', brand);
-    if (category != null && category.isNotEmpty) q = q.eq('category', category);
+    if (category != null && category.isNotEmpty) {
+      q = q.like('category', '%$category%');
+    }
     if (mark != null && mark.isNotEmpty) q = q.eq('mark', mark);
+    if (saleOnly) q = q.not('old_price', 'is', null);
     return q;
   }
 
@@ -314,6 +322,24 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
       return collected.values.toList();
     } catch (e) {
       _logger.e('getSimilarProducts failed: $e');
+      rethrow;
+    }
+  }
+
+  @override
+  Future<List<ProductImageDto>> getProductImages(String productId) async {
+    _logger.d('getProductImages productId=$productId');
+    try {
+      final response = await _client
+          .from('product_images')
+          .select()
+          .eq('product_id', productId)
+          .order('position', ascending: true);
+      final images = response.map(ProductImageDto.fromMap).toList();
+      _logger.d('getProductImages success: ${images.length} images');
+      return images;
+    } catch (e) {
+      _logger.e('getProductImages failed: $e');
       rethrow;
     }
   }

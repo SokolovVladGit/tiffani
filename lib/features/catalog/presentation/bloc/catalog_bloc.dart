@@ -122,6 +122,7 @@ class CatalogBloc extends Bloc<CatalogEvent, CatalogState> {
         mark: f.selectedMark,
         sortOption: f.sortOption,
         attributeFilters: attrs,
+        saleOnly: f.saleOnly,
       );
     }
     return _searchCatalog(
@@ -133,6 +134,7 @@ class CatalogBloc extends Bloc<CatalogEvent, CatalogState> {
       mark: f.selectedMark,
       sortOption: f.sortOption,
       attributeFilters: attrs,
+      saleOnly: f.saleOnly,
     );
   }
 }

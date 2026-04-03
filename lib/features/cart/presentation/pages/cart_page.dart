@@ -9,6 +9,7 @@ import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_failure_view.dart';
+import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../domain/entities/request_form_entity.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -330,21 +331,10 @@ class _StickyBottomBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isSubmitting ? null : onSubmit,
-                  child: isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Send request'),
-                ),
+              TiffanyPrimaryButton(
+                label: 'Send request',
+                onPressed: isSubmitting ? null : onSubmit,
+                isLoading: isSubmitting,
               ),
             ],
           ),
