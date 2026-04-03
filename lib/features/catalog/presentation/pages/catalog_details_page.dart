@@ -19,6 +19,9 @@ import '../../../favorites/presentation/widgets/favorite_button.dart';
 import '../../../recently_viewed/domain/entities/recently_viewed_item.dart';
 import '../../../recently_viewed/presentation/cubit/recently_viewed_cubit.dart';
 import '../../domain/entities/catalog_item_entity.dart';
+import '../../domain/entities/product_image_entity.dart';
+import '../cubit/product_images_cubit.dart';
+import '../cubit/product_images_state.dart';
 import '../cubit/similar_products_cubit.dart';
 import '../widgets/similar_products_section.dart';
 
@@ -34,6 +37,7 @@ class CatalogDetailsPage extends StatefulWidget {
 
 class _CatalogDetailsPageState extends State<CatalogDetailsPage> {
   late final SimilarProductsCubit _similarCubit;
+  late final ProductImagesCubit _imagesCubit;
   bool _contentVisible = false;
 
   @override
@@ -55,6 +59,7 @@ class _CatalogDetailsPageState extends State<CatalogDetailsPage> {
         brand: widget.item.brand,
         category: widget.item.category,
       );
+    _imagesCubit = sl<ProductImagesCubit>()..load(widget.item.productId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) setState(() => _contentVisible = true);
     });
@@ -63,6 +68,7 @@ class _CatalogDetailsPageState extends State<CatalogDetailsPage> {
   @override
   void dispose() {
     _similarCubit.close();
+    _imagesCubit.close();
     super.dispose();
   }
 
@@ -70,8 +76,11 @@ class _CatalogDetailsPageState extends State<CatalogDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: _similarCubit,
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: _similarCubit),
+        BlocProvider.value(value: _imagesCubit),
+      ],
       child: Scaffold(
         extendBodyBehindAppBar: true,
         appBar: PreferredSize(
@@ -88,9 +97,8 @@ class _CatalogDetailsPageState extends State<CatalogDetailsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _HeroSection(
+                item: item,
                 heroTag: widget.heroTag,
-                imageUrl: item.imageUrl,
-                itemId: item.id,
               ),
               AnimatedOpacity(
                 opacity: _contentVisible ? 1.0 : 0.0,
@@ -168,7 +176,7 @@ class _AddToCartBarState extends State<_AddToCartBar> {
     final screen = MediaQuery.of(context).size;
     final btnPos = box.localToGlobal(Offset.zero);
 
-    final startCenter = Offset(screen.width / 2, screen.height * 0.20);
+    final startCenter = Offset(screen.width / 2, screen.height * 0.27);
     final endCenter = Offset(screen.width / 2, btnPos.dy);
     final overlaySize = Size(screen.width * 0.55, screen.height * 0.26);
 
@@ -404,22 +412,122 @@ class _ProductDropState extends State<_ProductDrop>
   }
 }
 
-class _HeroSection extends StatelessWidget {
+class _HeroSection extends StatefulWidget {
+  final CatalogItemEntity item;
   final String? heroTag;
-  final String? imageUrl;
-  final String itemId;
 
-  const _HeroSection({this.heroTag, this.imageUrl, required this.itemId});
+  const _HeroSection({required this.item, this.heroTag});
+
+  @override
+  State<_HeroSection> createState() => _HeroSectionState();
+}
+
+class _HeroSectionState extends State<_HeroSection> {
+  int _selectedIndex = 0;
 
   @override
   Widget build(BuildContext context) {
-    final imageHeight = MediaQuery.of(context).size.height * 0.38;
-    final totalHeight = imageHeight + AppRadius.xxl;
-    final url = imageUrl;
+    final mq = MediaQuery.of(context);
+    final topPad = mq.padding.top;
+    final screenHeight = mq.size.height;
 
-    Widget imageWidget;
+    final imageTop = topPad + AppSpacing.xs + 36 + AppSpacing.sm;
+    final imageHeight = screenHeight * 0.30;
+    final totalHeight = imageTop + imageHeight + AppRadius.xxl;
+
+    return BlocBuilder<ProductImagesCubit, ProductImagesState>(
+      builder: (context, imagesState) {
+        final images = imagesState.images;
+        final safeIndex =
+            _selectedIndex < images.length ? _selectedIndex : 0;
+
+        String? displayUrl;
+        if (images.isNotEmpty) {
+          displayUrl = images[safeIndex].url;
+        }
+        displayUrl ??= widget.item.imageUrl;
+
+        final useHero = widget.heroTag != null && safeIndex == 0;
+
+        Widget imageWidget = AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: KeyedSubtree(
+            key: ValueKey(displayUrl ?? ''),
+            child: _buildMainImage(displayUrl, imageHeight),
+          ),
+        );
+
+        if (useHero) {
+          imageWidget = Hero(
+            tag: widget.heroTag!,
+            child: Material(
+              type: MaterialType.transparency,
+              child: imageWidget,
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: totalHeight,
+              child: Stack(
+                children: [
+                  const Positioned.fill(
+                    child: ColoredBox(color: AppColors.surface),
+                  ),
+                  Positioned(
+                    top: imageTop,
+                    left: 0,
+                    right: 0,
+                    height: imageHeight,
+                    child: imageWidget,
+                  ),
+                  SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _HeroIconButton(
+                            icon: CupertinoIcons.chevron_back,
+                            onTap: () => Navigator.of(context).maybePop(),
+                          ),
+                          _HeroIconButton(
+                            child: FavoriteButton(
+                                id: widget.item.id, iconSize: 20),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (images.length > 1)
+              _ThumbnailStrip(
+                images: images,
+                selectedIndex: safeIndex,
+                onSelected: (index) {
+                  if (index != _selectedIndex) {
+                    setState(() => _selectedIndex = index);
+                  }
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMainImage(String? url, double imageHeight) {
     if (url != null && url.isNotEmpty) {
-      imageWidget = CachedNetworkImage(
+      return CachedNetworkImage(
         imageUrl: url,
         width: double.infinity,
         height: imageHeight,
@@ -434,61 +542,88 @@ class _HeroSection extends StatelessWidget {
           iconSize: 48,
         ),
       );
-    } else {
-      imageWidget = AppImagePlaceholder(
-        width: double.infinity,
-        height: imageHeight,
-        iconSize: 48,
-      );
     }
-
-    if (heroTag != null) {
-      imageWidget = Hero(
-        tag: heroTag!,
-        child: Material(
-          type: MaterialType.transparency,
-          child: imageWidget,
-        ),
-      );
-    }
-
-    return SizedBox(
+    return AppImagePlaceholder(
       width: double.infinity,
-      height: totalHeight,
-      child: Stack(
-        children: [
-          const Positioned.fill(
-            child: ColoredBox(color: AppColors.surface),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: imageHeight,
-            child: imageWidget,
-          ),
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xs,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _HeroIconButton(
-                    icon: CupertinoIcons.chevron_back,
-                    onTap: () => Navigator.of(context).maybePop(),
+      height: imageHeight,
+      iconSize: 48,
+    );
+  }
+}
+
+class _ThumbnailStrip extends StatelessWidget {
+  final List<ProductImageEntity> images;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  const _ThumbnailStrip({
+    required this.images,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  static const double _size = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: AppColors.surface,
+      padding: const EdgeInsets.only(
+        top: AppSpacing.sm,
+        bottom: AppSpacing.md,
+      ),
+      child: SizedBox(
+        height: _size + 4,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          itemCount: images.length,
+          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+          itemBuilder: (context, index) {
+            final isSelected = index == selectedIndex;
+            return GestureDetector(
+              onTap: () => onSelected(index),
+              child: AnimatedScale(
+                scale: isSelected ? 1.04 : 1.0,
+                duration: const Duration(milliseconds: 180),
+                child: AnimatedOpacity(
+                  opacity: isSelected ? 1.0 : 0.65,
+                  duration: const Duration(milliseconds: 180),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                  width: _size,
+                  height: _size,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                    border: Border.all(
+                      color: isSelected
+                          ? AppColors.seed.withValues(alpha: 0.4)
+                          : Colors.transparent,
+                      width: 1,
+                    ),
                   ),
-                  _HeroIconButton(
-                    child: FavoriteButton(id: itemId, iconSize: 20),
+                  child: ClipRRect(
+                    borderRadius:
+                        BorderRadius.circular(AppRadius.sm - 1),
+                    child: CachedNetworkImage(
+                      imageUrl: images[index].url,
+                      width: _size,
+                      height: _size,
+                      fit: BoxFit.contain,
+                      placeholder: (_, _) => const SizedBox.shrink(),
+                      errorWidget: (_, _, _) => AppImagePlaceholder(
+                        width: _size,
+                        height: _size,
+                      ),
+                    ),
                   ),
-                ],
+                ),
+                ),
               ),
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -527,7 +662,6 @@ class _ContentSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mark = resolveDisplayMark(item.badge);
     final stock = availabilityText(
       quantity: item.quantity,
       itemId: item.id,
@@ -554,10 +688,6 @@ class _ContentSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (mark != null) ...[
-            _buildMark(mark),
-            const SizedBox(height: AppSpacing.md),
-          ],
           Text(
             item.title,
             style: const TextStyle(
@@ -642,26 +772,6 @@ class _ContentSection extends StatelessWidget {
         .replaceAll('&#39;', "'");
     text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
     return text.isEmpty ? null : text;
-  }
-
-  Widget _buildMark(String mark) {
-    final style = badgeStyleForMark(mark);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: style.background,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        mark.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: style.foreground,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
   }
 
   Widget _buildPrice() {

@@ -21,6 +21,25 @@ class AppDecorations {
         borderRadius: BorderRadius.circular(radius),
       );
 
+  static BoxDecoration cardElevated({double radius = AppRadius.lg}) =>
+      BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(radius),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 12,
+            spreadRadius: 0,
+            offset: Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 3,
+            offset: Offset(0, 1),
+          ),
+        ],
+      );
+
   static BoxDecoration skeleton({double radius = AppRadius.sm}) =>
       BoxDecoration(
         color: AppColors.skeleton,

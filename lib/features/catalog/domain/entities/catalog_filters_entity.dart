@@ -5,25 +5,29 @@ class CatalogFiltersEntity {
   final String? selectedCategory;
   final String? selectedMark;
   final CatalogSortOption sortOption;
+  final bool saleOnly;
 
   const CatalogFiltersEntity({
     this.selectedBrand,
     this.selectedCategory,
     this.selectedMark,
     this.sortOption = CatalogSortOption.defaultOrder,
+    this.saleOnly = false,
   });
 
   bool get isEmpty =>
       selectedBrand == null &&
       selectedCategory == null &&
       selectedMark == null &&
-      sortOption == CatalogSortOption.defaultOrder;
+      sortOption == CatalogSortOption.defaultOrder &&
+      !saleOnly;
 
   CatalogFiltersEntity copyWith({
     String? selectedBrand,
     String? selectedCategory,
     String? selectedMark,
     CatalogSortOption? sortOption,
+    bool? saleOnly,
     bool clearBrand = false,
     bool clearCategory = false,
     bool clearMark = false,
@@ -36,6 +40,7 @@ class CatalogFiltersEntity {
       selectedMark:
           clearMark ? null : (selectedMark ?? this.selectedMark),
       sortOption: sortOption ?? this.sortOption,
+      saleOnly: saleOnly ?? this.saleOnly,
     );
   }
 }

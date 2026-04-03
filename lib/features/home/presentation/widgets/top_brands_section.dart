@@ -8,6 +8,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../cubit/top_brands_cubit.dart';
+import '../home_strings.dart';
 import 'top_brand_card.dart';
 
 class TopBrandsSection extends StatelessWidget {
@@ -45,8 +46,8 @@ class _Content extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
-          title: 'Top Brands',
-          actionText: 'See all',
+          title: HomeStrings.brandsSection,
+          actionText: HomeStrings.seeAll,
           onAction: () => context.push(RouteNames.brands),
           padding: const EdgeInsets.fromLTRB(
             AppSpacing.lg,
@@ -66,6 +67,7 @@ class _Content extends StatelessWidget {
               final brand = brands[index];
               return TopBrandCard(
                 name: brand,
+                index: index,
                 onTap: () =>
                     context.push(RouteNames.brandCatalog, extra: brand),
               );

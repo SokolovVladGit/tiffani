@@ -16,6 +16,7 @@ class SearchCatalogUseCase {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) {
     return _repository.searchCatalog(
       query: query,
@@ -26,6 +27,7 @@ class SearchCatalogUseCase {
       mark: mark,
       sortOption: sortOption,
       attributeFilters: attributeFilters,
+      saleOnly: saleOnly,
     );
   }
 }

@@ -1,6 +1,7 @@
 import '../../domain/entities/catalog_sort_option.dart';
 import '../dto/catalog_item_dto.dart';
 import '../dto/catalog_page_result_dto.dart';
+import '../dto/product_image_dto.dart';
 
 abstract interface class CatalogSupabaseDataSource {
   Future<CatalogPageResultDto> getCatalogPage({
@@ -11,6 +12,7 @@ abstract interface class CatalogSupabaseDataSource {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   });
 
   Future<CatalogPageResultDto> searchCatalog({
@@ -22,6 +24,7 @@ abstract interface class CatalogSupabaseDataSource {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   });
 
   Future<CatalogItemDto?> getCatalogItemByVariantId(String variantId);
@@ -38,4 +41,6 @@ abstract interface class CatalogSupabaseDataSource {
     String? category,
     int limit = 10,
   });
+
+  Future<List<ProductImageDto>> getProductImages(String productId);
 }

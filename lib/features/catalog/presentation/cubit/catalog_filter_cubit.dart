@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../domain/entities/catalog_sort_option.dart';
+import '../../domain/helpers/category_parser.dart';
 import '../../domain/usecases/get_all_brands_use_case.dart';
 import '../../domain/usecases/get_available_categories_use_case.dart';
 import '../../domain/usecases/get_available_marks_use_case.dart';
@@ -27,7 +28,7 @@ class CatalogFilterCubit extends Cubit<CatalogFilterState> {
       ]);
       emit(state.copyWith(
         availableBrands: results[0],
-        availableCategories: results[1],
+        availableCategories: CategoryParser.extractTopLevel(results[1]),
         availableMarks: results[2],
         isLoadingOptions: false,
       ));

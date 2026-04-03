@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/tiffany_primary_button.dart';
 
 class RequestSuccessPage extends StatelessWidget {
   const RequestSuccessPage({super.key});
@@ -50,12 +51,9 @@ class RequestSuccessPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxxl + AppSpacing.xs),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.go('/catalog'),
-                    child: const Text('Continue shopping'),
-                  ),
+                TiffanyPrimaryButton(
+                  label: 'Continue shopping',
+                  onPressed: () => context.go('/catalog'),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(

@@ -39,7 +39,7 @@ class RecentlyViewedSection extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(title: 'Recently viewed'),
+            const SectionHeader(title: 'Недавно просмотренные'),
             SizedBox(
               height: 228,
               child: ListView.separated(

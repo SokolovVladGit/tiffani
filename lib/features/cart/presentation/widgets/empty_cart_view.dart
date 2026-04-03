@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/tiffany_primary_button.dart';
 
 class EmptyCartView extends StatelessWidget {
   const EmptyCartView({super.key});
@@ -40,7 +41,8 @@ class EmptyCartView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
-            ElevatedButton(
+            TiffanyPrimaryButton(
+              label: 'Go to catalog',
               onPressed: () {
                 final shell = StatefulNavigationShell.maybeOf(context);
                 if (shell != null) {
@@ -49,7 +51,6 @@ class EmptyCartView extends StatelessWidget {
                   context.go('/catalog');
                 }
               },
-              child: const Text('Go to catalog'),
             ),
           ],
         ),

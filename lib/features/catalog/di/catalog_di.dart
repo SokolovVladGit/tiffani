@@ -11,12 +11,14 @@ import '../domain/usecases/get_available_categories_use_case.dart';
 import '../domain/usecases/get_available_marks_use_case.dart';
 import '../domain/usecases/get_catalog_item_by_variant_id_use_case.dart';
 import '../domain/usecases/get_catalog_page_use_case.dart';
+import '../domain/usecases/get_product_images_use_case.dart';
 import '../domain/usecases/get_similar_products_use_case.dart';
 import '../domain/usecases/search_catalog_use_case.dart';
 import '../presentation/bloc/catalog_bloc.dart';
 import '../presentation/cubit/brands_cubit.dart';
 import '../presentation/cubit/catalog_filter_cubit.dart';
 import '../presentation/cubit/filter_cubit.dart';
+import '../presentation/cubit/product_images_cubit.dart';
 import '../presentation/cubit/similar_products_cubit.dart';
 
 Future<void> initCatalogDependencies() async {
@@ -41,6 +43,7 @@ Future<void> initCatalogDependencies() async {
   sl.registerLazySingleton(() => GetAvailableCategoriesUseCase(sl()));
   sl.registerLazySingleton(() => GetAvailableMarksUseCase(sl()));
   sl.registerLazySingleton(() => GetSimilarProductsUseCase(sl()));
+  sl.registerLazySingleton(() => GetProductImagesUseCase(sl()));
 
   sl.registerFactory(
     () => CatalogBloc(sl<GetCatalogPageUseCase>(), sl<SearchCatalogUseCase>()),
@@ -56,4 +59,5 @@ Future<void> initCatalogDependencies() async {
   sl.registerFactory(() => FilterCubit());
   sl.registerFactory(() => BrandsCubit(sl<GetAllBrandsUseCase>()));
   sl.registerFactory(() => SimilarProductsCubit(sl<GetSimilarProductsUseCase>()));
+  sl.registerFactory(() => ProductImagesCubit(sl<GetProductImagesUseCase>()));
 }

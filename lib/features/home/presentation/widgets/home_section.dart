@@ -8,8 +8,16 @@ import 'home_horizontal_item_card.dart';
 class HomeSection extends StatelessWidget {
   final String title;
   final List<CatalogItemEntity> items;
+  final String? actionText;
+  final VoidCallback? onAction;
 
-  const HomeSection({super.key, required this.title, required this.items});
+  const HomeSection({
+    super.key,
+    required this.title,
+    required this.items,
+    this.actionText,
+    this.onAction,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +26,11 @@ class HomeSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(title: title),
+        SectionHeader(
+          title: title,
+          actionText: actionText,
+          onAction: onAction,
+        ),
         SizedBox(
           height: 228,
           child: ListView.separated(

@@ -1,6 +1,7 @@
 import '../entities/catalog_item_entity.dart';
 import '../entities/catalog_page_result.dart';
 import '../entities/catalog_sort_option.dart';
+import '../entities/product_image_entity.dart';
 
 abstract interface class CatalogRepository {
   Future<CatalogPageResult> getCatalogPage({
@@ -11,6 +12,7 @@ abstract interface class CatalogRepository {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   });
 
   Future<CatalogPageResult> searchCatalog({
@@ -22,6 +24,7 @@ abstract interface class CatalogRepository {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   });
 
   Future<CatalogItemEntity?> getCatalogItemByVariantId(String variantId);
@@ -38,4 +41,6 @@ abstract interface class CatalogRepository {
     String? category,
     int limit = 10,
   });
+
+  Future<List<ProductImageEntity>> getProductImages(String productId);
 }

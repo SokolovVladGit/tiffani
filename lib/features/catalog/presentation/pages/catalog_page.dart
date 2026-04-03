@@ -3,15 +3,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_decorations.dart';
+import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/debounce.dart';
-import '../../../cart/presentation/cubit/cart_cubit.dart';
-import '../../../cart/presentation/cubit/cart_state.dart';
-import '../../../favorites/presentation/cubit/favorites_cubit.dart';
-import '../../../favorites/presentation/cubit/favorites_state.dart';
 import '../../domain/entities/catalog_filters_entity.dart';
-import '../../domain/entities/filter_state.dart';
 import '../../domain/usecases/get_all_brands_use_case.dart';
 import '../../domain/usecases/get_available_categories_use_case.dart';
 import '../../domain/usecases/get_available_marks_use_case.dart';
@@ -19,16 +18,27 @@ import '../bloc/catalog_bloc.dart';
 import '../bloc/catalog_event.dart';
 import '../bloc/catalog_state.dart';
 import '../cubit/catalog_filter_cubit.dart';
+import '../cubit/catalog_filter_state.dart';
 import '../cubit/filter_cubit.dart';
-import '../widgets/catalog_filter_bar.dart';
-import '../widgets/catalog_grid.dart';
-import '../widgets/catalog_list_skeleton.dart';
-import '../widgets/filter_bottom_sheet.dart';
+import '../widgets/catalog_brand_strip.dart';
+import '../widgets/catalog_card.dart';
+import '../widgets/catalog_category_grid.dart';
 
 class CatalogPage extends StatefulWidget {
   final String? initialBrand;
+  final String? initialCategory;
+  final String? initialMark;
+  final bool initialSaleOnly;
+  final String? title;
 
-  const CatalogPage({super.key, this.initialBrand});
+  const CatalogPage({
+    super.key,
+    this.initialBrand,
+    this.initialCategory,
+    this.initialMark,
+    this.initialSaleOnly = false,
+    this.title,
+  });
 
   @override
   State<CatalogPage> createState() => _CatalogPageState();
@@ -42,24 +52,42 @@ class _CatalogPageState extends State<CatalogPage> {
   late final CatalogFilterCubit _catalogFilterCubit;
   bool _ownsCatalogFilterCubit = false;
 
+  bool get _hasInitialFilters =>
+      widget.initialBrand != null ||
+      widget.initialCategory != null ||
+      widget.initialMark != null ||
+      widget.initialSaleOnly;
+
   @override
   void initState() {
     super.initState();
     _bloc = sl<CatalogBloc>();
     _filterCubit = sl<FilterCubit>();
 
-    if (widget.initialBrand != null) {
+    if (_hasInitialFilters) {
       _catalogFilterCubit = CatalogFilterCubit(
         sl<GetAllBrandsUseCase>(),
         sl<GetAvailableCategoriesUseCase>(),
         sl<GetAvailableMarksUseCase>(),
       );
       _ownsCatalogFilterCubit = true;
-      _catalogFilterCubit
-        ..loadFilterOptions()
-        ..setBrand(widget.initialBrand);
+      _catalogFilterCubit.loadFilterOptions();
+      if (widget.initialBrand != null) {
+        _catalogFilterCubit.setBrand(widget.initialBrand);
+      }
+      if (widget.initialCategory != null) {
+        _catalogFilterCubit.setCategory(widget.initialCategory);
+      }
+      if (widget.initialMark != null) {
+        _catalogFilterCubit.setMark(widget.initialMark);
+      }
       _bloc.add(CatalogFiltersApplied(
-        CatalogFiltersEntity(selectedBrand: widget.initialBrand),
+        CatalogFiltersEntity(
+          selectedBrand: widget.initialBrand,
+          selectedCategory: widget.initialCategory,
+          selectedMark: widget.initialMark,
+          saleOnly: widget.initialSaleOnly,
+        ),
       ));
     } else {
       _catalogFilterCubit = sl<CatalogFilterCubit>();
@@ -93,48 +121,21 @@ class _CatalogPageState extends State<CatalogPage> {
         BlocProvider.value(value: _filterCubit),
       ],
       child: Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
-          title: Text(widget.initialBrand ?? 'Catalog'),
-          actions: [
-            _FilterButton(cubit: _filterCubit),
-            _FavoritesButton(),
-            _CartButton(),
-          ],
+          title: Text(widget.title ?? widget.initialBrand ?? 'Каталог'),
         ),
         body: Column(
           children: [
-            Container(
-              color: AppColors.surface,
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-              child: TextField(
-                controller: _searchController,
-                onChanged: _onSearchChanged,
-                style: const TextStyle(fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: 'Search products',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: ListenableBuilder(
-                    listenable: _searchController,
-                    builder: (context, _) {
-                      if (_searchController.text.isEmpty) {
-                        return const SizedBox.shrink();
-                      }
-                      return IconButton(
-                        icon: const Icon(Icons.clear, size: 18),
-                        onPressed: () {
-                          _searchController.clear();
-                          _bloc.add(const CatalogSearchChanged(''));
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ),
+            _SearchBar(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+              onClear: () {
+                _searchController.clear();
+                _bloc.add(const CatalogSearchChanged(''));
+              },
             ),
-            const CatalogFilterBar(),
-            const Divider(height: 1),
-            const _ResultCount(),
-            const Expanded(child: _CatalogBody()),
+            Expanded(child: _CatalogScrollBody(bloc: _bloc)),
           ],
         ),
       ),
@@ -142,162 +143,365 @@ class _CatalogPageState extends State<CatalogPage> {
   }
 }
 
-class _FilterButton extends StatelessWidget {
-  final FilterCubit cubit;
+// ---------------------------------------------------------------------------
+// Search bar — pinned above scroll
+// ---------------------------------------------------------------------------
 
-  const _FilterButton({required this.cubit});
+class _SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  const _SearchBar({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<FilterCubit, FilterState>(
-      bloc: cubit,
-      buildWhen: (prev, curr) =>
-          prev.hasActiveFilters != curr.hasActiveFilters,
-      builder: (context, filterState) {
-        return IconButton(
-          onPressed: () => showFilterBottomSheet(
-            context,
-            cubit,
-            onApply: () {
-              context.read<CatalogBloc>().add(
-                    CatalogAttributeFiltersApplied(cubit.state.selected),
-                  );
-            },
-          ),
-          icon: Badge(
-            isLabelVisible: filterState.hasActiveFilters,
-            smallSize: 8,
-            child: const Icon(Icons.tune),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _FavoritesButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<FavoritesCubit, FavoritesState>(
-      bloc: sl<FavoritesCubit>(),
-      buildWhen: (prev, curr) => prev.ids.length != curr.ids.length,
-      builder: (context, state) {
-        final count = state.ids.length;
-        return IconButton(
-          onPressed: () => context.push(RouteNames.favorites),
-          icon: Badge(
-            isLabelVisible: count > 0,
-            label: Text('$count'),
-            child: Icon(
-              count > 0 ? Icons.favorite : Icons.favorite_border,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _CartButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: sl<CartCubit>(),
-      child: BlocBuilder<CartCubit, CartState>(
-        buildWhen: (prev, curr) => prev.totalItems != curr.totalItems,
-        builder: (context, state) {
-          final count = state.totalItems;
-          return IconButton(
-            onPressed: () {
-              final shell = StatefulNavigationShell.maybeOf(context);
-              if (shell != null) {
-                shell.goBranch(3);
-              } else {
-                context.push(RouteNames.cart);
+    return Container(
+      color: AppColors.background,
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: const TextStyle(fontSize: 15),
+        decoration: InputDecoration(
+          hintText: 'Поиск товаров',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: ListenableBuilder(
+            listenable: controller,
+            builder: (context, _) {
+              if (controller.text.isEmpty) {
+                return const SizedBox.shrink();
               }
+              return IconButton(
+                icon: const Icon(Icons.clear, size: 18),
+                onPressed: onClear,
+              );
             },
-            icon: Badge(
-              isLabelVisible: count > 0,
-              label: Text('$count'),
-              child: const Icon(Icons.shopping_bag_outlined),
-            ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ResultCount extends StatelessWidget {
-  const _ResultCount();
+// ---------------------------------------------------------------------------
+// Scrollable body — discovery + products in one scroll
+// ---------------------------------------------------------------------------
+
+class _CatalogScrollBody extends StatefulWidget {
+  final CatalogBloc bloc;
+
+  const _CatalogScrollBody({required this.bloc});
+
+  @override
+  State<_CatalogScrollBody> createState() => _CatalogScrollBodyState();
+}
+
+class _CatalogScrollBodyState extends State<_CatalogScrollBody> {
+  final _scrollController = ScrollController();
+  bool _loadMoreTriggered = false;
+
+  static const _prefetchThreshold = 0.75;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_loadMoreTriggered) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.maxScrollExtent <= 0) return;
+    if (pos.pixels / pos.maxScrollExtent >= _prefetchThreshold) {
+      _loadMoreTriggered = true;
+      widget.bloc.add(const CatalogLoadMoreRequested());
+    }
+  }
+
+  void _applyFilters(BuildContext context) {
+    final fs = context.read<CatalogFilterCubit>().state;
+    widget.bloc.add(CatalogFiltersApplied(CatalogFiltersEntity(
+      selectedBrand: fs.selectedBrand,
+      selectedCategory: fs.selectedCategory,
+      selectedMark: fs.selectedMark,
+      sortOption: fs.sortOption,
+    )));
+  }
+
+  void _onCategoryTap(BuildContext context, String? category) {
+    final cubit = context.read<CatalogFilterCubit>();
+    cubit.setCategory(category);
+    _applyFilters(context);
+  }
+
+  void _onBrandTap(BuildContext context, String? brand) {
+    final cubit = context.read<CatalogFilterCubit>();
+    cubit.setBrand(brand);
+    _applyFilters(context);
+  }
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<CatalogBloc, CatalogState>(
       buildWhen: (prev, curr) =>
-          prev.totalCount != curr.totalCount || prev.status != curr.status,
-      builder: (context, state) {
-        if (state.status != CatalogStatus.success) {
-          return const SizedBox.shrink();
-        }
-        final count = state.totalCount;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Text(
-            '$count ${count == 1 ? 'product' : 'products'} found',
-            style: TextStyle(
-              fontSize: 13,
-              color: AppColors.textSecondary,
-            ),
-          ),
+          prev.status != curr.status ||
+          prev.items.length != curr.items.length ||
+          prev.isLoadingMore != curr.isLoadingMore ||
+          prev.totalCount != curr.totalCount,
+      builder: (context, catalogState) {
+        _loadMoreTriggered = false;
+        return BlocBuilder<CatalogFilterCubit, CatalogFilterState>(
+          buildWhen: (prev, curr) =>
+              prev.availableCategories != curr.availableCategories ||
+              prev.availableBrands != curr.availableBrands ||
+              prev.selectedCategory != curr.selectedCategory ||
+              prev.selectedBrand != curr.selectedBrand,
+          builder: (context, filterState) {
+            return CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // -- Category discovery grid --
+                SliverToBoxAdapter(
+                  child: CatalogCategoryGrid(
+                    categories: filterState.availableCategories,
+                    selectedCategory: filterState.selectedCategory,
+                    onCategoryTap: (c) => _onCategoryTap(context, c),
+                  ),
+                ),
+                // -- Brand discovery strip --
+                SliverToBoxAdapter(
+                  child: CatalogBrandStrip(
+                    brands: filterState.availableBrands,
+                    selectedBrand: filterState.selectedBrand,
+                    onBrandTap: (b) => _onBrandTap(context, b),
+                  ),
+                ),
+                // -- Result count --
+                if (catalogState.status == CatalogStatus.success)
+                  SliverToBoxAdapter(
+                    child: _ResultCount(totalCount: catalogState.totalCount),
+                  ),
+                // -- Content based on state --
+                ..._buildContentSlivers(context, catalogState),
+              ],
+            );
+          },
         );
       },
     );
   }
+
+  List<Widget> _buildContentSlivers(
+    BuildContext context,
+    CatalogState state,
+  ) {
+    return switch (state.status) {
+      CatalogStatus.initial || CatalogStatus.loading => [
+          SliverList.builder(
+            itemCount: 6,
+            itemBuilder: (_, _) => const _SkeletonCard(),
+          ),
+        ],
+      CatalogStatus.failure => [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _FailureView(
+              message: state.errorMessage ?? 'Что-то пошло не так',
+            ),
+          ),
+        ],
+      CatalogStatus.success when state.items.isEmpty => [
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _EmptyView(
+              isSearching: state.isSearching,
+              hasActiveFilters: state.hasActiveFilters,
+              onClearFilters: () {
+                context.read<FilterCubit>().clear();
+                context.read<CatalogFilterCubit>().clearAll();
+                widget.bloc
+                  ..add(const CatalogAttributeFiltersApplied({}))
+                  ..add(
+                      CatalogFiltersApplied(const CatalogFiltersEntity()));
+              },
+            ),
+          ),
+        ],
+      CatalogStatus.success => [
+          SliverList.builder(
+            itemCount:
+                state.items.length + (state.isLoadingMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= state.items.length) {
+                return const _BottomLoader();
+              }
+              final item = state.items[index];
+              final heroTag = 'catalog-${item.id}';
+              return CatalogCard(
+                item: item,
+                heroTag: heroTag,
+                onTap: () => context.push(
+                  RouteNames.catalogDetails,
+                  extra:
+                      ProductDetailsPayload(item: item, heroTag: heroTag),
+                ),
+              );
+            },
+          ),
+        ],
+    };
+  }
 }
 
-class _CatalogBody extends StatelessWidget {
-  const _CatalogBody();
+// ---------------------------------------------------------------------------
+// Skeleton card
+// ---------------------------------------------------------------------------
+
+class _SkeletonCard extends StatelessWidget {
+  const _SkeletonCard();
+
+  static const double _imageSize = 108;
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<CatalogBloc, CatalogState>(
-      builder: (context, state) {
-        final child = switch (state.status) {
-          CatalogStatus.initial ||
-          CatalogStatus.loading => const CatalogListSkeleton(),
-          CatalogStatus.failure => _FailureView(
-            message: state.errorMessage ?? 'Something went wrong',
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 5,
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: AppDecorations.cardSoft(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: _imageSize,
+            height: _imageSize,
+            decoration: AppDecorations.skeleton(radius: AppRadius.md),
           ),
-          CatalogStatus.success when state.items.isEmpty => _EmptyView(
-            isSearching: state.isSearching,
-            hasActiveFilters: state.hasActiveFilters,
-            onClearFilters: () {
-              context.read<FilterCubit>().clear();
-              context.read<CatalogFilterCubit>().clearAll();
-              context.read<CatalogBloc>()
-                ..add(const CatalogAttributeFiltersApplied({}))
-                ..add(CatalogFiltersApplied(const CatalogFiltersEntity()));
-            },
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _bar(width: 48, height: 14),
+                const SizedBox(height: AppSpacing.xs),
+                _bar(height: 14),
+                const SizedBox(height: 4),
+                _bar(width: 140, height: 14),
+                const SizedBox(height: 2),
+                _bar(width: 100, height: 11),
+                const SizedBox(height: AppSpacing.sm),
+                _bar(width: 72, height: 16),
+              ],
+            ),
           ),
-          CatalogStatus.success => CatalogGrid(
-            items: state.items,
-            isLoadingMore: state.isLoadingMore,
-            onLoadMore: () {
-              context
-                  .read<CatalogBloc>()
-                  .add(const CatalogLoadMoreRequested());
-            },
-          ),
-        };
-        return AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: child,
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _bar({double? width, required double height}) {
+    return Container(
+      width: width ?? double.infinity,
+      height: height,
+      decoration: AppDecorations.skeleton(),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Result count
+// ---------------------------------------------------------------------------
+
+class _ResultCount extends StatelessWidget {
+  final int totalCount;
+
+  const _ResultCount({required this.totalCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.border.withValues(alpha: 0.5),
+                width: 0.5,
+              ),
+            ),
+            child: Text(
+              _label(totalCount),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _label(int count) {
+    if (count == 0) return 'Ничего не найдено';
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod10 == 1 && mod100 != 11) return '$count товар';
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return '$count товара';
+    }
+    return '$count товаров';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Bottom loader
+// ---------------------------------------------------------------------------
+
+class _BottomLoader extends StatelessWidget {
+  const _BottomLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+      child: Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.seed,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Empty view
+// ---------------------------------------------------------------------------
 
 class _EmptyView extends StatelessWidget {
   final bool isSearching;
@@ -324,32 +528,23 @@ class _EmptyView extends StatelessWidget {
               color: AppColors.textTertiary,
             ),
             const SizedBox(height: 12),
-            if (isSearching || hasActiveFilters)
-              Text(
-                'No products match your search or filters',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
-              )
-            else
-              Text(
-                'No products found',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.textSecondary,
-                ),
+            Text(
+              (isSearching || hasActiveFilters)
+                  ? 'Ничего не найдено по вашему запросу'
+                  : 'Товары не найдены',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: AppColors.textSecondary,
               ),
+            ),
             if (hasActiveFilters) ...[
               const SizedBox(height: 12),
               GestureDetector(
                 onTap: onClearFilters,
                 child: Text(
-                  'Clear filters',
+                  'Сбросить фильтры',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -364,6 +559,10 @@ class _EmptyView extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Failure view
+// ---------------------------------------------------------------------------
 
 class _FailureView extends StatelessWidget {
   final String message;
@@ -386,7 +585,8 @@ class _FailureView extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               message,
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style:
+                  TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -394,7 +594,7 @@ class _FailureView extends StatelessWidget {
               onPressed: () {
                 context.read<CatalogBloc>().add(const CatalogRefreshed());
               },
-              child: const Text('Retry'),
+              child: const Text('Повторить'),
             ),
           ],
         ),

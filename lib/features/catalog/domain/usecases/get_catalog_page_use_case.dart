@@ -15,6 +15,7 @@ class GetCatalogPageUseCase {
     String? mark,
     CatalogSortOption sortOption = CatalogSortOption.defaultOrder,
     Map<String, Set<String>>? attributeFilters,
+    bool saleOnly = false,
   }) {
     return _repository.getCatalogPage(
       from: from,
@@ -24,6 +25,7 @@ class GetCatalogPageUseCase {
       mark: mark,
       sortOption: sortOption,
       attributeFilters: attributeFilters,
+      saleOnly: saleOnly,
     );
   }
 }
