@@ -14,8 +14,8 @@ BadgeStyle badgeStyleForMark(String mark) {
   switch (mark.trim().toUpperCase()) {
     case 'SALE':
       return const BadgeStyle(
-        foreground: AppColors.discount,
-        background: AppColors.saleBadgeSurface,
+        foreground: Colors.white,
+        background: AppColors.discount,
       );
     case 'HIT':
       return const BadgeStyle(
@@ -46,33 +46,33 @@ String? resolveDisplayMark(String? badge) {
 
 /// Returns availability label based on stock quantity.
 ///
-/// - `quantity > 5` → "In stock"
-/// - `quantity 1..5` → "Limited stock"
-/// - `quantity == 0` → "Out of stock"
-/// - `null` (no data) → "In stock" default, with ~15% deterministic
-///   "Limited stock" based on item ID hash (details page only).
+/// - `quantity > 5` → "В наличии"
+/// - `quantity 1..5` → "Мало на складе"
+/// - `quantity == 0` → "Нет в наличии"
+/// - `null` (no data) → "В наличии" default, with ~15% deterministic
+///   "Мало на складе" based on item ID hash (details page only).
 String availabilityText({
   required int? quantity,
   String? itemId,
   bool detailed = false,
 }) {
   if (quantity != null) {
-    if (quantity <= 0) return 'Out of stock';
-    if (quantity <= 5) return 'Limited stock';
-    return 'In stock';
+    if (quantity <= 0) return 'Нет в наличии';
+    if (quantity <= 5) return 'Мало на складе';
+    return 'В наличии';
   }
 
   if (detailed && itemId != null) {
     final hash = itemId.hashCode.abs();
-    if (hash % 7 == 0) return 'Limited stock';
+    if (hash % 7 == 0) return 'Мало на складе';
   }
 
-  return 'In stock';
+  return 'В наличии';
 }
 
 /// Color for availability text.
 Color availabilityColor(String text) {
-  if (text == 'Limited stock') return AppColors.stockLimited;
-  if (text == 'Out of stock') return AppColors.discount;
+  if (text == 'Мало на складе') return AppColors.stockLimited;
+  if (text == 'Нет в наличии') return AppColors.discount;
   return AppColors.stockAvailable;
 }

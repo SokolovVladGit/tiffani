@@ -1,3 +1,5 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../domain/entities/cart_item_entity.dart';
 import '../../domain/entities/cart_summary_entity.dart';
 import '../../domain/entities/request_form_entity.dart';
@@ -11,8 +13,13 @@ import '../dto/request_submission_payload_dto.dart';
 class CartRepositoryImpl implements CartRepository {
   final CartLocalDataSource _localDataSource;
   final CartRemoteDataSource _remoteDataSource;
+  final SupabaseClient _supabaseClient;
 
-  const CartRepositoryImpl(this._localDataSource, this._remoteDataSource);
+  const CartRepositoryImpl(
+    this._localDataSource,
+    this._remoteDataSource,
+    this._supabaseClient,
+  );
 
   @override
   Future<List<CartItemEntity>> getCartItems() async {
@@ -121,10 +128,11 @@ class CartRepositoryImpl implements CartRepository {
     final payload = RequestSubmissionPayloadDto(
       customerName: form.name.trim(),
       phone: form.phone.trim(),
-      comment: form.comment?.trim(),
+      comment: _buildComment(form),
       totalItems: totalItems,
       totalQuantity: totalQuantity,
       totalPrice: totalPrice,
+      userId: _supabaseClient.auth.currentUser?.id,
     );
 
     final itemPayloads = items
@@ -148,6 +156,32 @@ class CartRepositoryImpl implements CartRepository {
       request: payload,
       items: itemPayloads,
     );
+  }
+
+  String? _buildComment(RequestFormEntity form) {
+    final parts = <String>[];
+    if (form.email != null && form.email!.trim().isNotEmpty) {
+      parts.add('Email: ${form.email!.trim()}');
+    }
+    if (form.deliveryMethod != null && form.deliveryMethod!.isNotEmpty) {
+      parts.add('Доставка: ${form.deliveryMethod}');
+    }
+    if (form.address != null && form.address!.trim().isNotEmpty) {
+      parts.add('Адрес: ${form.address!.trim()}');
+    }
+    if (form.paymentMethod != null && form.paymentMethod!.isNotEmpty) {
+      parts.add('Оплата: ${form.paymentMethod}');
+    }
+    if (form.promoCode != null && form.promoCode!.trim().isNotEmpty) {
+      parts.add('Промокод: ${form.promoCode!.trim()}');
+    }
+    if (form.loyaltyCard != null && form.loyaltyCard!.trim().isNotEmpty) {
+      parts.add('Карта клиента: ${form.loyaltyCard!.trim()}');
+    }
+    if (form.comment != null && form.comment!.trim().isNotEmpty) {
+      parts.add('Комментарий: ${form.comment!.trim()}');
+    }
+    return parts.isEmpty ? null : parts.join('\n');
   }
 
   CartSummaryEntity _computeSummary(List<CartItemDto> dtos) {

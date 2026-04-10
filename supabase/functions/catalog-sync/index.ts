@@ -34,10 +34,16 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: (e as Error).message }, 400);
   }
 
+  let dryRun = false;
+  try {
+    const body = await req.json();
+    dryRun = body?.dry_run === true;
+  } catch { /* no body or invalid JSON — default to live run */ }
+
   const { data: run, error: runError } = await client
     .from("catalog_sync_runs")
     .insert({
-      status: "running",
+      status: dryRun ? "dry_run" : "running",
       source_type: "yml",
       started_at: new Date().toISOString(),
     })
@@ -53,7 +59,7 @@ Deno.serve(async (req) => {
 
   const runId: string = run.id;
   const allErrors: SyncError[] = [];
-  let syncStatus = "completed";
+  let syncStatus = dryRun ? "dry_run_completed" : "completed";
 
   try {
     const ymlResponse = await fetch(config.tildaYmlUrl, {
@@ -72,6 +78,40 @@ Deno.serve(async (req) => {
 
     const offersCount = catalog.offers.length;
     const categoriesCount = catalog.categories.length;
+
+    if (dryRun) {
+      await client
+        .from("catalog_sync_runs")
+        .update({
+          status: "dry_run_completed",
+          finished_at: new Date().toISOString(),
+          products_seen: new Set(catalog.offers.map((o) => o.groupId ?? o.id)).size,
+          variants_seen: offersCount,
+          images_seen: catalog.offers.filter((o) => o.picture).length,
+          metadata: {
+            yml_url: config.tildaYmlUrl,
+            yml_size_bytes: ymlSizeBytes,
+            categories_count: categoriesCount,
+            offers_count: offersCount,
+            dry_run: true,
+          },
+        })
+        .eq("id", runId);
+
+      return jsonResponse({
+        run_id: runId,
+        status: "dry_run_completed",
+        dry_run: true,
+        yml_size_bytes: ymlSizeBytes,
+        categories_count: categoriesCount,
+        products_seen: new Set(catalog.offers.map((o) => o.groupId ?? o.id)).size,
+        variants_seen: offersCount,
+        images_in_yml: catalog.offers.filter((o) => o.picture).length,
+        sample_offer: catalog.offers[0]
+          ? { id: catalog.offers[0].id, name: catalog.offers[0].name, groupId: catalog.offers[0].groupId }
+          : null,
+      });
+    }
 
     const { stats, errors: syncErrors } = await syncCatalog(
       client,
@@ -131,14 +171,23 @@ Deno.serve(async (req) => {
       await persistErrors(client, runId, allErrors);
     }
 
+    const errorSample = allErrors.slice(0, 5).map((e) => ({
+      stage: e.stage,
+      key: e.external_key,
+      msg: e.message,
+      det: e.details,
+    }));
+
     return jsonResponse({
       run_id: runId,
       status: syncStatus,
       products_seen: stats.products_seen,
+      products_upserted: stats.products_upserted,
       variants_seen: stats.variants_seen,
       variants_upserted: stats.variants_upserted,
       images_upserted: stats.images_upserted + galleryImagesUpserted,
       error_count: allErrors.length,
+      error_sample: errorSample,
     });
   } catch (e) {
     const message = (e as Error).message;

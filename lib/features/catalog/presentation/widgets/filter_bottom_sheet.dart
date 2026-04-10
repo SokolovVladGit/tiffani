@@ -76,6 +76,7 @@ class _FilterSheetContent extends StatelessWidget {
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary,
+                letterSpacing: 0.3,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -101,17 +102,21 @@ class _FilterSheetContent extends StatelessWidget {
                             onSelected: (_) => context
                                 .read<FilterCubit>()
                                 .toggle(entry.key, value),
-                            selectedColor: AppColors.badgeSurface,
-                            checkmarkColor: AppColors.seed,
+                            selectedColor: AppColors.seed,
+                            checkmarkColor: Colors.white,
                             side: BorderSide(
                               color: selected
                                   ? AppColors.seed
                                   : AppColors.border,
+                              width: selected ? 1.0 : 0.5,
                             ),
                             labelStyle: TextStyle(
                               fontSize: 13,
+                              fontWeight: selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                               color: selected
-                                  ? AppColors.seed
+                                  ? Colors.white
                                   : AppColors.textPrimary,
                             ),
                             shape: RoundedRectangleBorder(
@@ -136,7 +141,10 @@ class _FilterSheetContent extends StatelessWidget {
                       context.read<FilterCubit>().clear();
                     },
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.border),
+                      side: const BorderSide(
+                        color: AppColors.textSecondary,
+                        width: 0.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius:
                             BorderRadius.circular(AppRadius.md),
@@ -147,7 +155,7 @@ class _FilterSheetContent extends StatelessWidget {
                     ),
                     child: const Text(
                       'Clear',
-                      style: TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(color: AppColors.textPrimary),
                     ),
                   ),
                 ),

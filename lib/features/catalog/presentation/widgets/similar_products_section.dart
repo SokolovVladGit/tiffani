@@ -26,7 +26,7 @@ class SimilarProductsSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader(
-              title: 'Similar products',
+              title: 'Похожие товары',
               padding: EdgeInsets.fromLTRB(
                 AppSpacing.xl,
                 AppSpacing.xxl,

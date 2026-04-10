@@ -233,7 +233,7 @@ class _Badge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w700,
           color: style.foreground,
-          letterSpacing: 0.5,
+          letterSpacing: 0.8,
         ),
       ),
     );
@@ -365,7 +365,11 @@ class _AddButtonState extends State<_AddButton>
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: AppColors.seed.withValues(alpha: 0.1),
+            color: AppColors.seed.withValues(alpha: 0.08),
+            border: Border.all(
+              color: AppColors.seed.withValues(alpha: 0.18),
+              width: 0.5,
+            ),
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Icon(Icons.add_shopping_cart, size: 18, color: AppColors.seed),
@@ -390,7 +394,11 @@ class _QuantityChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.seed.withValues(alpha: 0.1),
+        color: AppColors.seed.withValues(alpha: 0.08),
+        border: Border.all(
+          color: AppColors.seed.withValues(alpha: 0.18),
+          width: 0.5,
+        ),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(

@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/di/injector.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../../../account/presentation/cubit/auth_cubit.dart';
 
 class RequestSuccessPage extends StatelessWidget {
   const RequestSuccessPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isGuest = !sl<AuthCubit>().state.isAuthenticated;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -33,7 +38,7 @@ class RequestSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxl),
                 const Text(
-                  'Request sent',
+                  'Заявка отправлена',
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
@@ -42,7 +47,7 @@ class RequestSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.md),
                 const Text(
-                  'Our manager will contact you shortly\nto confirm your order.',
+                  'Наш менеджер свяжется с вами\nдля подтверждения заказа.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -52,17 +57,31 @@ class RequestSuccessPage extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xxxl + AppSpacing.xs),
                 TiffanyPrimaryButton(
-                  label: 'Continue shopping',
-                  onPressed: () => context.go('/catalog'),
+                  label: 'Продолжить покупки',
+                  onPressed: () => context.go(RouteNames.catalog),
                 ),
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () => context.go('/cart'),
-                    child: const Text('Go to cart'),
+                    onPressed: () => context.go(RouteNames.cart),
+                    child: const Text('Перейти в корзину'),
                   ),
                 ),
+                if (isGuest) ...[
+                  const SizedBox(height: AppSpacing.xxl),
+                  GestureDetector(
+                    onTap: () => context.push(RouteNames.register),
+                    child: const Text(
+                      'Создать аккаунт',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -70,5 +89,4 @@ class RequestSuccessPage extends StatelessWidget {
       ),
     );
   }
-
 }

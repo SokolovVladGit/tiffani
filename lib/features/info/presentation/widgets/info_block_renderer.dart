@@ -6,12 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../domain/entities/info_block_entity.dart';
-
-const _actionColor = Color(0xFFA87080);
 
 class InfoBlockRenderer extends StatelessWidget {
   final InfoBlockEntity block;
@@ -301,11 +300,7 @@ class _RegionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFFCF9FA), Color(0xFFF9F5F7)],
-        ),
+        gradient: AppGradients.regionCard,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
       ),
       child: Column(
@@ -323,7 +318,7 @@ class _RegionCard extends StatelessWidget {
                   height: 22,
                   margin: const EdgeInsets.only(top: 1),
                   decoration: BoxDecoration(
-                    color: _actionColor.withValues(alpha: 0.38),
+                    color: AppColors.action.withValues(alpha: 0.38),
                     borderRadius: BorderRadius.circular(1.5),
                   ),
                 ),
@@ -352,7 +347,7 @@ class _RegionCard extends StatelessWidget {
                     line,
                     style: const TextStyle(
                       fontSize: 14,
-                      color: Color(0xFF2C2C2E),
+                      color: AppColors.textDense,
                       height: 1.65,
                     ),
                   ),
@@ -370,7 +365,7 @@ class _RegionCard extends StatelessWidget {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2EAED),
+                  color: AppColors.deliveryNoteSurface,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -378,7 +373,7 @@ class _RegionCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: _actionColor.withValues(alpha: 0.85),
+                    color: AppColors.action.withValues(alpha: 0.85),
                     height: 1.4,
                   ),
                 ),
@@ -461,7 +456,7 @@ class _DeliveryGroup extends StatelessWidget {
             style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: Color(0xFFA8A0A4),
+              color: AppColors.labelMuted,
               letterSpacing: 1.1,
             ),
           ),
@@ -536,7 +531,7 @@ class _StoreCard extends StatelessWidget {
       height: hasImage ? 260 : null,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: hasImage ? Colors.black : const Color(0xFFF8F5F6),
+        color: hasImage ? Colors.black : AppColors.storeSurface,
         borderRadius: BorderRadius.circular(18),
       ),
       clipBehavior: Clip.antiAlias,
@@ -667,7 +662,7 @@ class _StoreOverlay extends StatelessWidget {
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w500,
-                color: dark ? _actionColor : Colors.white,
+                color: dark ? AppColors.action : Colors.white,
                 height: 1.4,
                 shadows: textShadows,
               ),
@@ -849,8 +844,8 @@ class _GalleryBlockState extends State<_GalleryBlock> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(2.5),
                     color: active
-                        ? const Color(0xFFB5AAAE).withValues(alpha: 0.65)
-                        : const Color(0xFFB5AAAE)
+                        ? AppColors.indicator.withValues(alpha: 0.65)
+                        : AppColors.indicator
                             .withValues(alpha: 0.25),
                   ),
                 );
@@ -886,7 +881,7 @@ class _CtaBlock extends StatelessWidget {
           AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl,
         ),
         decoration: BoxDecoration(
-          color: const Color(0xFFFBF8F9),
+          color: AppColors.ctaSurface,
           borderRadius: BorderRadius.circular(AppRadius.xxl),
         ),
         child: Column(
@@ -898,7 +893,7 @@ class _CtaBlock extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: _actionColor.withValues(alpha: 0.50),
+                  color: AppColors.action.withValues(alpha: 0.50),
                   letterSpacing: 1.6,
                   height: 1.2,
                 ),
@@ -975,18 +970,18 @@ class _CtaField extends StatelessWidget {
         hintText: hint,
         hintStyle: const TextStyle(
           fontSize: 15,
-          color: Color(0xFFB8B0B4),
+          color: AppColors.inputHint,
           fontWeight: FontWeight.w400,
         ),
         prefixIcon: Padding(
           padding:
               const EdgeInsets.only(left: AppSpacing.lg, right: AppSpacing.md),
-          child: Icon(icon, size: 20, color: const Color(0xFFB8B0B4)),
+          child: Icon(icon, size: 20, color: AppColors.inputHint),
         ),
         prefixIconConstraints:
             const BoxConstraints(minWidth: 0, minHeight: 0),
         filled: true,
-        fillColor: const Color(0xFFF4F2F3),
+        fillColor: AppColors.inputFill,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xl,
           vertical: 18,
@@ -1002,7 +997,7 @@ class _CtaField extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(
-            color: _actionColor.withValues(alpha: 0.3),
+            color: AppColors.action.withValues(alpha: 0.3),
             width: 1.5,
           ),
         ),

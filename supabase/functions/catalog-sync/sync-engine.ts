@@ -10,7 +10,8 @@ import type {
 } from "./types.ts";
 import { buildCategoryLookup } from "./yml-parser.ts";
 
-const BATCH_SIZE = 50;
+const BODY_BATCH = 2000;
+const URL_BATCH = 200;
 
 const EDITION_PARAMS = new Set([
   "Объём",
@@ -75,17 +76,21 @@ export async function syncCatalog(
     }
   }
 
-  for (let i = 0; i < productRows.length; i += BATCH_SIZE) {
-    const batch = productRows.slice(i, i + BATCH_SIZE);
-    const { error } = await client
+  const productIdMap = new Map<string, string>();
+
+  for (let i = 0; i < productRows.length; i += BODY_BATCH) {
+    const batch = productRows.slice(i, i + BODY_BATCH);
+    const { data, error } = await client
       .from("products")
-      .upsert(batch, { onConflict: "tilda_uid" });
+      .upsert(batch, { onConflict: "tilda_uid" })
+      .select("id, tilda_uid");
 
     if (error) {
       for (const row of batch) {
-        const { error: rowErr } = await client
+        const { data: rowData, error: rowErr } = await client
           .from("products")
-          .upsert(row, { onConflict: "tilda_uid" });
+          .upsert(row, { onConflict: "tilda_uid" })
+          .select("id, tilda_uid");
 
         if (rowErr) {
           errors.push({
@@ -96,24 +101,28 @@ export async function syncCatalog(
           });
         } else {
           stats.products_upserted++;
+          if (rowData?.[0]) {
+            productIdMap.set(rowData[0].tilda_uid, String(rowData[0].id));
+          }
         }
       }
     } else {
       stats.products_upserted += batch.length;
+      if (data) {
+        for (const row of data) {
+          productIdMap.set(row.tilda_uid, String(row.id));
+        }
+      }
     }
   }
-
-  // --- Phase 2: Resolve product PKs ---
-  const tildaUids = productRows.map((r) => r.tilda_uid);
-  const productIdMap = await resolveProductIds(client, tildaUids);
 
   // --- Phase 3: Stream variant + image upserts in chunks ---
   // Avoids building full 2400-row arrays; only one chunk lives in memory.
   const seenImageKeys = new Set<string>();
   const offers = catalog.offers;
 
-  for (let i = 0; i < offers.length; i += BATCH_SIZE) {
-    const chunk = offers.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < offers.length; i += BODY_BATCH) {
+    const chunk = offers.slice(i, i + BODY_BATCH);
     const variantBatch: VariantRow[] = [];
     const imageBatch: ProductImageRow[] = [];
 
@@ -208,32 +217,6 @@ export async function syncCatalog(
   return { stats, errors };
 }
 
-/**
- * Resolves tilda_uid → products.id mapping.
- */
-async function resolveProductIds(
-  client: SupabaseClient,
-  tildaUids: string[],
-): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  for (let i = 0; i < tildaUids.length; i += BATCH_SIZE) {
-    const batch = tildaUids.slice(i, i + BATCH_SIZE);
-    const { data } = await client
-      .from("products")
-      .select("id, tilda_uid")
-      .in("tilda_uid", batch);
-
-    if (data) {
-      for (const row of data) {
-        map.set(
-          row.tilda_uid,
-          typeof row.id === "string" ? row.id : String(row.id),
-        );
-      }
-    }
-  }
-  return map;
-}
 
 function groupOffersByProduct(
   offers: TildaOffer[],
@@ -264,20 +247,31 @@ async function deactivateMissingProducts(
   seenTildaUids: Set<string>,
   errors: SyncError[],
 ): Promise<void> {
-  const { data: activeProducts } = await client
-    .from("products")
-    .select("tilda_uid")
-    .eq("is_active", true)
-    .not("tilda_uid", "is", null);
+  const allActive: { tilda_uid: string }[] = [];
+  const PAGE = 5000;
+  let page = 0;
+  while (true) {
+    const { data } = await client
+      .from("products")
+      .select("tilda_uid")
+      .eq("is_active", true)
+      .not("tilda_uid", "is", null)
+      .range(page * PAGE, (page + 1) * PAGE - 1);
 
-  if (!activeProducts) return;
+    if (!data || data.length === 0) break;
+    allActive.push(...data);
+    if (data.length < PAGE) break;
+    page++;
+  }
 
-  const toDeactivate = activeProducts
+  if (allActive.length === 0) return;
+
+  const toDeactivate = allActive
     .filter((r) => !seenTildaUids.has(r.tilda_uid))
     .map((r) => r.tilda_uid);
 
-  for (let i = 0; i < toDeactivate.length; i += BATCH_SIZE) {
-    const batch = toDeactivate.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < toDeactivate.length; i += URL_BATCH) {
+    const batch = toDeactivate.slice(i, i + URL_BATCH);
     const { error } = await client
       .from("products")
       .update({ is_active: false })

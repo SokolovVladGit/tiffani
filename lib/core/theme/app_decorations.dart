@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
 import 'app_radius.dart';
+import 'app_shadows.dart';
 
 /// Reusable surface decorations for cards and containers.
 class AppDecorations {
@@ -15,29 +16,22 @@ class AppDecorations {
         border: Border.all(color: AppColors.border, width: _borderWidth),
       );
 
+  /// Soft card with a hairline border for definition against gray backgrounds.
   static BoxDecoration cardSoft({double radius = AppRadius.lg}) =>
       BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(radius),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.5),
+          width: _borderWidth,
+        ),
       );
 
   static BoxDecoration cardElevated({double radius = AppRadius.lg}) =>
       BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D000000),
-            blurRadius: 12,
-            spreadRadius: 0,
-            offset: Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 3,
-            offset: Offset(0, 1),
-          ),
-        ],
+        boxShadow: AppShadows.cardElevated,
       );
 
   static BoxDecoration skeleton({double radius = AppRadius.sm}) =>

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_text_styles.dart';
 
 /// Shared failure state used across secondary screens.
 class AppFailureView extends StatelessWidget {
@@ -30,10 +31,7 @@ class AppFailureView extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Text(
               message,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppColors.textSecondary,
-              ),
+              style: AppTextStyles.errorBody,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),

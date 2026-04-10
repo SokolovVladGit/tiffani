@@ -30,14 +30,14 @@ class CartSummarySection extends StatelessWidget {
       decoration: AppDecorations.cardSoft(),
       child: Column(
         children: [
-          _row('Items', '$totalItems'),
+          _row('Позиций', '$totalItems'),
           const SizedBox(height: AppSpacing.sm),
-          _row('Quantity', '$totalQuantity'),
+          _row('Количество', '$totalQuantity'),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Divider(),
           ),
-          _row('Total', PriceFormatter.formatRub(totalPrice), bold: true),
+          _row('Итого', PriceFormatter.formatRub(totalPrice), bold: true),
         ],
       ),
     );

@@ -1,7 +1,12 @@
 import 'package:go_router/go_router.dart';
 
+import '../../features/account/presentation/pages/account_page.dart';
+import '../../features/account/presentation/pages/login_page.dart';
+import '../../features/account/presentation/pages/order_history_page.dart';
+import '../../features/account/presentation/pages/register_page.dart';
 import '../../features/app_shell/presentation/pages/app_shell_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
+import '../../features/cart/presentation/pages/checkout_page.dart';
 import '../../features/cart/presentation/pages/request_success_page.dart';
 import '../../features/catalog/domain/entities/catalog_item_entity.dart';
 import '../../features/catalog/presentation/pages/brands_page.dart';
@@ -48,15 +53,11 @@ class AppRouter {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: RouteNames.cart,
-                builder: (context, state) => const CartPage(),
-              ),
-            ],
-          ),
         ],
+      ),
+      GoRoute(
+        path: RouteNames.cart,
+        builder: (context, state) => const CartPage(),
       ),
       GoRoute(
         path: RouteNames.catalogDetails,
@@ -85,6 +86,26 @@ class AppRouter {
           final brand = state.extra! as String;
           return CatalogPage(initialBrand: brand);
         },
+      ),
+      GoRoute(
+        path: RouteNames.account,
+        builder: (context, state) => const AccountPage(),
+      ),
+      GoRoute(
+        path: RouteNames.orderHistory,
+        builder: (context, state) => const OrderHistoryPage(),
+      ),
+      GoRoute(
+        path: RouteNames.login,
+        builder: (context, state) => const LoginPage(),
+      ),
+      GoRoute(
+        path: RouteNames.register,
+        builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        path: RouteNames.checkout,
+        builder: (context, state) => const CheckoutPage(),
       ),
       GoRoute(
         path: RouteNames.requestSuccess,
