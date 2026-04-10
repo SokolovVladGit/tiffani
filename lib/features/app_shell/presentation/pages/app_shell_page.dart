@@ -4,8 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_gradients.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../cart/presentation/cubit/cart_state.dart';
 
@@ -17,8 +21,6 @@ class AppShellPage extends StatelessWidget {
   static const _iconSize = 22.0;
   static const _barHeight = 64.0;
   static const _capsuleRadius = 32.0;
-  static const _inactiveColor = Color(0xFF78736F);
-  static const _activePillColor = Color(0xFFE6D7DF);
   static const _pillRadius = 14.0;
 
   static const _icons = <IconData>[
@@ -35,7 +37,11 @@ class AppShellPage extends StatelessWidget {
     CupertinoIcons.bag_fill,
   ];
 
-  static const _labels = <String>['Home', 'Catalog', 'Info', 'Cart'];
+  static const _labels = <String>['Главная', 'Каталог', 'Инфо', 'Корзина'];
+
+  /// Number of actual shell branches (Home, Catalog, Info).
+  /// The 4th nav item (Cart) is a push-navigation action, not a branch.
+  static const _branchCount = 3;
 
   @override
   Widget build(BuildContext context) {
@@ -52,12 +58,13 @@ class AppShellPage extends StatelessWidget {
             child: Container(
               height: _barHeight,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFFF0E8E4), Color(0xFFECE3DE)],
-                ),
+                gradient: AppGradients.navBar,
                 borderRadius: BorderRadius.circular(_capsuleRadius),
+                border: Border.all(
+                  color: AppColors.navBorder,
+                  width: 0.5,
+                ),
+                boxShadow: AppShadows.navBar,
               ),
               clipBehavior: Clip.antiAlias,
               child: BlocSelector<CartCubit, CartState, int>(
@@ -67,9 +74,10 @@ class AppShellPage extends StatelessWidget {
                   final selected = navigationShell.currentIndex;
                   return Row(
                     children: List.generate(4, (i) {
-                      final active = i == selected;
+                      final isBranch = i < _branchCount;
+                      final active = isBranch && i == selected;
                       final color =
-                          active ? AppColors.seed : _inactiveColor;
+                          active ? AppColors.textPrimary : AppColors.navInactive;
                       final iconData =
                           active ? _activeIcons[i] : _icons[i];
 
@@ -88,17 +96,23 @@ class AppShellPage extends StatelessWidget {
                       return Expanded(
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: () => navigationShell.goBranch(
-                            i,
-                            initialLocation: i == selected,
-                          ),
+                          onTap: () {
+                            if (isBranch) {
+                              navigationShell.goBranch(
+                                i,
+                                initialLocation: i == selected,
+                              );
+                            } else {
+                              context.push(RouteNames.cart);
+                            }
+                          },
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               DecoratedBox(
                                 decoration: BoxDecoration(
                                   color: active
-                                      ? _activePillColor
+                                      ? AppColors.navActivePill
                                       : Colors.transparent,
                                   borderRadius: BorderRadius.circular(
                                     _pillRadius,
@@ -106,13 +120,13 @@ class AppShellPage extends StatelessWidget {
                                 ),
                                 child: Padding(
                                   padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 4,
+                                    horizontal: 18,
+                                    vertical: 5,
                                   ),
                                   child: icon,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 3),
                               Text(
                                 _labels[i],
                                 style: TextStyle(
@@ -189,11 +203,7 @@ class _CartBadgeIconState extends State<_CartBadgeIcon>
     super.dispose();
   }
 
-  static const _badgeLabelStyle = TextStyle(
-    color: Colors.white,
-    fontSize: 10,
-    fontWeight: FontWeight.w600,
-  );
+  static const _badgeLabelStyle = AppTextStyles.badgeLabel;
 
   @override
   Widget build(BuildContext context) {

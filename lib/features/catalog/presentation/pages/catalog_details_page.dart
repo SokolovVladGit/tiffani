@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,9 +9,12 @@ import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/utils/product_trust_helpers.dart';
 import '../../../../core/widgets/app_image_placeholder.dart';
+import '../../../../core/widgets/sticky_cta_bar.dart';
+import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../../cart/domain/entities/cart_item_from_catalog.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
 import '../../../favorites/presentation/widgets/favorite_button.dart';
@@ -230,47 +232,18 @@ class _AddToCartBarState extends State<_AddToCartBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.xl,
-        AppSpacing.md,
-        AppSpacing.xl,
-        AppSpacing.md + MediaQuery.of(context).padding.bottom,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, -1),
-          ),
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SizedBox(
-        width: double.infinity,
-        child: ElevatedButton.icon(
-          key: _buttonKey,
-          onPressed: _handleAddToCart,
-          icon: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _showSuccess
-                ? const Icon(Icons.check_rounded, size: 18,
-                    key: ValueKey('check'))
-                : const Icon(Icons.add_shopping_cart, size: 18,
-                    key: ValueKey('cart')),
-          ),
-          label: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: _showSuccess
-                ? const Text('Added', key: ValueKey('added'))
-                : const Text('Add to cart', key: ValueKey('add')),
-          ),
+    return StickyCtaBar(
+      child: TiffanyPrimaryButton(
+        key: _buttonKey,
+        label: _showSuccess ? 'Добавлено' : 'Добавить в корзину',
+        onPressed: _handleAddToCart,
+        icon: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _showSuccess
+              ? const Icon(Icons.check_rounded, size: 18,
+                  color: Colors.white, key: ValueKey('check'))
+              : const Icon(Icons.add_shopping_cart, size: 18,
+                  color: Colors.white, key: ValueKey('cart')),
         ),
       ),
     );
@@ -494,10 +467,7 @@ class _HeroSectionState extends State<_HeroSection> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _HeroIconButton(
-                            icon: CupertinoIcons.chevron_back,
-                            onTap: () => Navigator.of(context).maybePop(),
-                          ),
+                          const AppBackButton(),
                           _HeroIconButton(
                             child: FavoriteButton(
                                 id: widget.item.id, iconSize: 20),
@@ -630,11 +600,9 @@ class _ThumbnailStrip extends StatelessWidget {
 }
 
 class _HeroIconButton extends StatelessWidget {
-  final IconData? icon;
-  final VoidCallback? onTap;
   final Widget? child;
 
-  const _HeroIconButton({this.icon, this.onTap, this.child});
+  const _HeroIconButton({this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -645,12 +613,7 @@ class _HeroIconButton extends StatelessWidget {
         color: AppColors.background,
         shape: BoxShape.circle,
       ),
-      child: child ??
-          GestureDetector(
-            onTap: onTap,
-            behavior: HitTestBehavior.opaque,
-            child: Icon(icon, size: 18, color: AppColors.textPrimary),
-          ),
+      child: child ?? const SizedBox.shrink(),
     );
   }
 }
@@ -659,6 +622,27 @@ class _ContentSection extends StatelessWidget {
   final CatalogItemEntity item;
 
   const _ContentSection({required this.item});
+
+  static final _countryLineRegex =
+      RegExp(r'Страна[- ]производитель\s*:\s*(.+)', caseSensitive: false);
+
+  /// Extracts "Страна-производитель: ..." from [text], returning the
+  /// cleaned text and the extracted country (if any).
+  static ({String? text, String? country}) _extractCountry(String? text) {
+    if (text == null) return (text: null, country: null);
+    final match = _countryLineRegex.firstMatch(text);
+    if (match == null) return (text: text, country: null);
+
+    final country = match.group(1)!.trim();
+    final cleaned = text
+        .replaceFirst(_countryLineRegex, '')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+    return (
+      text: cleaned.isEmpty ? null : cleaned,
+      country: country.isEmpty ? null : country,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -669,8 +653,15 @@ class _ContentSection extends StatelessWidget {
     );
     final stockColor = availabilityColor(stock);
 
-    final shortDesc = _stripHtml(item.shortDescription);
-    final fullDesc = _stripHtml(item.fullDescription);
+    final rawShort = _stripHtml(item.shortDescription);
+    final rawFull = _stripHtml(item.fullDescription);
+
+    final shortResult = _extractCountry(rawShort);
+    final fullResult = _extractCountry(rawFull);
+
+    final shortDesc = shortResult.text;
+    final fullDesc = fullResult.text;
+    final country = shortResult.country ?? fullResult.country;
 
     return Container(
       width: double.infinity,
@@ -732,7 +723,7 @@ class _ContentSection extends StatelessWidget {
               ),
               SizedBox(width: AppSpacing.xs),
               Text(
-                'Pickup today or delivery 1–2 days',
+                'Самовывоз сегодня или доставка 1–2 дня',
                 style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
               ),
             ],
@@ -743,15 +734,21 @@ class _ContentSection extends StatelessWidget {
           ],
           if (shortDesc != null) ...[
             const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Description'),
+            const _SectionTitle(text: 'Описание'),
             const SizedBox(height: AppSpacing.sm),
             _BodyText(text: shortDesc),
           ],
           if (fullDesc != null) ...[
             const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Details'),
+            const _SectionTitle(text: 'Подробнее'),
             const SizedBox(height: AppSpacing.sm),
             _BodyText(text: fullDesc),
+          ],
+          if (country != null) ...[
+            const SizedBox(height: AppSpacing.xxl),
+            const _SectionTitle(text: 'Характеристики'),
+            const SizedBox(height: AppSpacing.sm),
+            _SpecRow(label: 'Страна-производитель', value: country),
           ],
         ],
       ),
@@ -897,6 +894,40 @@ class _BodyText extends StatelessWidget {
           if (i > 0) const SizedBox(height: AppSpacing.lg),
           Text(paragraphs[i].trim(), style: _style),
         ],
+      ],
+    );
+  }
+}
+
+class _SpecRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SpecRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$label:  ',
+          style: const TextStyle(
+            fontSize: 14,
+            color: AppColors.textSecondary,
+            height: 1.6,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textPrimary,
+              height: 1.6,
+            ),
+          ),
+        ),
       ],
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import '../theme/app_text_styles.dart';
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -29,14 +30,7 @@ class SectionHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
-            ),
-          ),
+          Text(title, style: AppTextStyles.sectionTitle),
           if (actionText != null && onAction != null)
             GestureDetector(
               onTap: onAction,
@@ -49,20 +43,12 @@ class SectionHeader extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      actionText!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFA09590),
-                        letterSpacing: 0.2,
-                      ),
-                    ),
+                    Text(actionText!, style: AppTextStyles.sectionAction),
                     const SizedBox(width: 4),
                     const Icon(
                       Icons.chevron_right_rounded,
                       size: 15,
-                      color: Color(0xFFA09590),
+                      color: AppColors.actionMuted,
                     ),
                   ],
                 ),

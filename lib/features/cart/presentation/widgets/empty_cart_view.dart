@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
@@ -23,7 +24,7 @@ class EmptyCartView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.lg),
             const Text(
-              'Your cart is empty',
+              'Корзина пуста',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
@@ -32,7 +33,7 @@ class EmptyCartView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             const Text(
-              'Add products from the catalog\nto prepare a request.',
+              'Добавьте товары из каталога,\nчтобы оформить заявку.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
@@ -42,15 +43,8 @@ class EmptyCartView extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xxl),
             TiffanyPrimaryButton(
-              label: 'Go to catalog',
-              onPressed: () {
-                final shell = StatefulNavigationShell.maybeOf(context);
-                if (shell != null) {
-                  shell.goBranch(1);
-                } else {
-                  context.go('/catalog');
-                }
-              },
+              label: 'Перейти в каталог',
+              onPressed: () => context.go(RouteNames.catalog),
             ),
           ],
         ),

@@ -9,6 +9,7 @@ import '../../../../core/router/catalog_filter_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/theme/app_text_styles.dart';
 import '../../../favorites/presentation/cubit/favorites_cubit.dart';
 import '../../../favorites/presentation/cubit/favorites_state.dart';
 import '../../../articles/presentation/cubit/home_articles_cubit.dart';
@@ -170,6 +171,15 @@ class _HeroSection extends StatelessWidget {
                       ),
                     ),
                     const _FavoritesButton(),
+                    IconButton(
+                      onPressed: () => context.push(RouteNames.account),
+                      icon: const Icon(
+                        CupertinoIcons.person_crop_circle,
+                        color: Colors.white,
+                        size: 22,
+                        shadows: _heroIconShadows,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -184,13 +194,7 @@ class _HeroSection extends StatelessWidget {
               children: [
                 const Text(
                   'TIFFANI',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 4,
-                    height: 1.1,
-                  ),
+                  style: AppTextStyles.hero,
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -198,7 +202,7 @@ class _HeroSection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.7),
+                    color: Colors.white.withValues(alpha: 0.75),
                     letterSpacing: 0.5,
                     height: 1.4,
                   ),

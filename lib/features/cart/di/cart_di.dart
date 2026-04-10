@@ -32,6 +32,7 @@ Future<void> initCartDependencies() async {
     () => CartRepositoryImpl(
       sl<CartLocalDataSource>(),
       sl<CartRemoteDataSource>(),
+      sl<SupabaseClient>(),
     ),
   );
 

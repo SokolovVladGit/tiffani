@@ -58,7 +58,7 @@ class _TopBrandCardState extends State<TopBrandCard> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
                     height: 1.3,
                     letterSpacing: 0.5,

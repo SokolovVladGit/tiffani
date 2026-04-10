@@ -85,7 +85,7 @@ class _BrandChip extends StatelessWidget {
     required this.onTap,
   });
 
-  static const _brandSubtleColor = Color(0xFFEDEAEC);
+  static const _brandSubtleColor = AppColors.chipSubtle;
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +94,7 @@ class _BrandChip extends StatelessWidget {
       child: TiffanyCreamSurface(
         toneIndex: index,
         intensity: isSelected
-            ? TiffanyCreamIntensity.secondary
+            ? TiffanyCreamIntensity.primary
             : TiffanyCreamIntensity.subtle,
         borderRadius: AppRadius.md,
         subtleColor: _brandSubtleColor,
@@ -105,7 +105,7 @@ class _BrandChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
             color: isSelected
                 ? AppColors.textPrimary
                 : AppColors.textSecondary,

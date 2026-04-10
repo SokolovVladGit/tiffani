@@ -102,8 +102,10 @@ class _CategoryChip extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
             fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-            color: AppColors.textPrimary,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected
+                ? AppColors.textPrimary
+                : AppColors.textSecondary,
             letterSpacing: isSelected ? 0.3 : 0,
             height: 1.3,
           ),

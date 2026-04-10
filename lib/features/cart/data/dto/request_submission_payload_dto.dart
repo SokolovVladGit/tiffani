@@ -7,6 +7,7 @@ class RequestSubmissionPayloadDto {
   final double totalPrice;
   final String status;
   final String source;
+  final String? userId;
 
   const RequestSubmissionPayloadDto({
     required this.customerName,
@@ -17,6 +18,7 @@ class RequestSubmissionPayloadDto {
     required this.totalPrice,
     this.status = 'new',
     this.source = 'mobile_app',
+    this.userId,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,6 +31,7 @@ class RequestSubmissionPayloadDto {
       'total_price': totalPrice,
       'status': status,
       'source': source,
+      if (userId != null) 'user_id': userId,
     };
   }
 }
