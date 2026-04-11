@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../domain/entities/cart_item_entity.dart';
 import '../../domain/entities/cart_summary_entity.dart';
+import '../../domain/entities/order_result_entity.dart';
 import '../../domain/entities/request_form_entity.dart';
 import '../../domain/repositories/cart_repository.dart';
 import '../datasources/cart_local_data_source.dart';
@@ -94,7 +95,17 @@ class CartRepositoryImpl implements CartRepository {
   @override
   Future<CartSummaryEntity> getCartSummary() async {
     final dtos = await _localDataSource.getCartItems();
-    return _computeSummary(dtos);
+    final totalItems = dtos.length;
+    final totalQuantity = dtos.fold<int>(0, (sum, d) => sum + d.quantity);
+    final totalPrice = dtos.fold<double>(
+      0,
+      (sum, d) => sum + (d.price ?? 0) * d.quantity,
+    );
+    return CartSummaryEntity(
+      totalItems: totalItems,
+      totalQuantity: totalQuantity,
+      totalPrice: totalPrice,
+    );
   }
 
   @override
@@ -104,7 +115,7 @@ class CartRepositoryImpl implements CartRepository {
   }
 
   @override
-  Future<void> submitOrderRequest({
+  Future<OrderResultEntity> submitOrderRequest({
     required RequestFormEntity form,
     required List<CartItemEntity> items,
   }) async {
@@ -118,84 +129,44 @@ class CartRepositoryImpl implements CartRepository {
       throw Exception('Cart is empty');
     }
 
-    final totalItems = items.length;
-    final totalQuantity = items.fold<int>(0, (s, i) => s + i.quantity);
-    final totalPrice = items.fold<double>(
-      0,
-      (s, i) => s + (i.price ?? 0) * i.quantity,
-    );
-
-    final payload = RequestSubmissionPayloadDto(
-      customerName: form.name.trim(),
+    final customer = RequestSubmissionPayloadDto(
+      name: form.name.trim(),
       phone: form.phone.trim(),
-      comment: _buildComment(form),
-      totalItems: totalItems,
-      totalQuantity: totalQuantity,
-      totalPrice: totalPrice,
+      email: _nullIfEmpty(form.email),
+      deliveryMethod: _nullIfEmpty(form.deliveryMethod),
+      deliveryAddress: _nullIfEmpty(form.address),
+      paymentMethod: _nullIfEmpty(form.paymentMethod),
+      promoCode: _nullIfEmpty(form.promoCode),
+      loyaltyCard: _nullIfEmpty(form.loyaltyCard),
+      comment: _nullIfEmpty(form.comment),
+      consentGiven: form.consentGiven,
       userId: _supabaseClient.auth.currentUser?.id,
     );
 
     final itemPayloads = items
-        .map(
-          (i) => RequestItemPayloadDto(
-            requestId: '',
-            variantId: i.id,
-            productId: i.productId,
-            title: i.title,
-            brand: i.brand,
-            imageUrl: i.imageUrl,
-            price: i.price,
-            quantity: i.quantity,
-            edition: i.edition,
-            modification: i.modification,
-          ),
-        )
+        .map((i) => RequestItemPayloadDto(
+              variantId: i.id,
+              quantity: i.quantity,
+            ))
         .toList();
 
-    await _remoteDataSource.submitOrderRequest(
-      request: payload,
+    final result = await _remoteDataSource.submitOrderRequest(
+      customer: customer,
       items: itemPayloads,
     );
+
+    return OrderResultEntity(
+      orderId: result['order_id'] as String,
+      totalItems: (result['total_items'] as num).toInt(),
+      totalQuantity: (result['total_quantity'] as num).toInt(),
+      totalPrice: (result['total_price'] as num).toDouble(),
+    );
   }
 
-  String? _buildComment(RequestFormEntity form) {
-    final parts = <String>[];
-    if (form.email != null && form.email!.trim().isNotEmpty) {
-      parts.add('Email: ${form.email!.trim()}');
-    }
-    if (form.deliveryMethod != null && form.deliveryMethod!.isNotEmpty) {
-      parts.add('Доставка: ${form.deliveryMethod}');
-    }
-    if (form.address != null && form.address!.trim().isNotEmpty) {
-      parts.add('Адрес: ${form.address!.trim()}');
-    }
-    if (form.paymentMethod != null && form.paymentMethod!.isNotEmpty) {
-      parts.add('Оплата: ${form.paymentMethod}');
-    }
-    if (form.promoCode != null && form.promoCode!.trim().isNotEmpty) {
-      parts.add('Промокод: ${form.promoCode!.trim()}');
-    }
-    if (form.loyaltyCard != null && form.loyaltyCard!.trim().isNotEmpty) {
-      parts.add('Карта клиента: ${form.loyaltyCard!.trim()}');
-    }
-    if (form.comment != null && form.comment!.trim().isNotEmpty) {
-      parts.add('Комментарий: ${form.comment!.trim()}');
-    }
-    return parts.isEmpty ? null : parts.join('\n');
-  }
-
-  CartSummaryEntity _computeSummary(List<CartItemDto> dtos) {
-    final totalItems = dtos.length;
-    final totalQuantity = dtos.fold<int>(0, (sum, d) => sum + d.quantity);
-    final totalPrice = dtos.fold<double>(
-      0,
-      (sum, d) => sum + (d.price ?? 0) * d.quantity,
-    );
-    return CartSummaryEntity(
-      totalItems: totalItems,
-      totalQuantity: totalQuantity,
-      totalPrice: totalPrice,
-    );
+  String? _nullIfEmpty(String? value) {
+    if (value == null) return null;
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
   CartItemEntity _toEntity(CartItemDto dto) {

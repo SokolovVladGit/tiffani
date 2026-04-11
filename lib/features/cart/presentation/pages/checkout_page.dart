@@ -349,7 +349,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           hint: 'Телефон',
           keyboard: TextInputType.phone,
           action: TextInputAction.next,
-          validator: _requiredValidator('Укажите телефон'),
+          validator: _phoneValidator,
         ),
         const SizedBox(height: AppSpacing.md),
         _buildField(
@@ -357,6 +357,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
           hint: 'Email (необязательно)',
           keyboard: TextInputType.emailAddress,
           action: TextInputAction.next,
+          validator: _emailValidator,
         ),
       ],
     );
@@ -424,8 +425,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
+  static final _phonePattern = RegExp(r'^[\d\s\+\-\(\)]{7,20}$');
+  static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
   FormFieldValidator<String> _requiredValidator(String message) {
     return (v) => (v == null || v.trim().isEmpty) ? message : null;
+  }
+
+  String? _phoneValidator(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Укажите телефон';
+    if (!_phonePattern.hasMatch(v.trim())) return 'Некорректный номер телефона';
+    return null;
+  }
+
+  String? _emailValidator(String? v) {
+    if (v == null || v.trim().isEmpty) return null;
+    if (!_emailPattern.hasMatch(v.trim())) return 'Некорректный email';
+    return null;
   }
 
   // ---------------------------------------------------------------------------

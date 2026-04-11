@@ -11,6 +11,7 @@ class CartState {
   final String? errorMessage;
   final bool isSubmitting;
   final bool submissionSuccess;
+  final String? lastOrderId;
 
   const CartState({
     this.status = CartStatus.initial,
@@ -21,6 +22,7 @@ class CartState {
     this.errorMessage,
     this.isSubmitting = false,
     this.submissionSuccess = false,
+    this.lastOrderId,
   });
 
   bool get isEmpty => items.isEmpty;
@@ -41,6 +43,7 @@ class CartState {
     String? errorMessage,
     bool? isSubmitting,
     bool? submissionSuccess,
+    String? lastOrderId,
   }) {
     return CartState(
       status: status ?? this.status,
@@ -51,6 +54,7 @@ class CartState {
       errorMessage: errorMessage ?? this.errorMessage,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submissionSuccess: submissionSuccess ?? this.submissionSuccess,
+      lastOrderId: lastOrderId ?? this.lastOrderId,
     );
   }
 }
