@@ -10,6 +10,7 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../../favorites/presentation/cubit/favorites_cubit.dart';
 import '../../../favorites/presentation/cubit/favorites_state.dart';
 import '../../../articles/presentation/cubit/home_articles_cubit.dart';
@@ -86,6 +87,7 @@ class _HomeBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _HeroSection(height: heroHeight),
+            const SizedBox(height: 10),
             BlocBuilder<HomeBloc, HomeState>(
               builder: (context, state) {
                 final child = switch (state.status) {
@@ -124,93 +126,97 @@ class _HeroSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/home/main.jpg',
-            fit: BoxFit.cover,
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withValues(alpha: 0.45),
-                  Colors.black.withValues(alpha: 0.0),
-                  Colors.black.withValues(alpha: 0.65),
-                ],
-                stops: const [0.0, 0.3, 1.0],
-              ),
+    return ClipPath(
+      clipper: const HeroCurveClipper(),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(
+              'assets/images/home/main.jpg',
+              fit: BoxFit.cover,
             ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      onPressed: () => _navigateToCatalog(context),
-                      icon: const Icon(
-                        CupertinoIcons.search,
-                        color: Colors.white,
-                        size: 22,
-                        shadows: _heroIconShadows,
-                      ),
-                    ),
-                    const _FavoritesButton(),
-                    IconButton(
-                      onPressed: () => context.push(RouteNames.account),
-                      icon: const Icon(
-                        CupertinoIcons.person_crop_circle,
-                        color: Colors.white,
-                        size: 22,
-                        shadows: _heroIconShadows,
-                      ),
-                    ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: 0.45),
+                    Colors.black.withValues(alpha: 0.0),
+                    Colors.black.withValues(alpha: 0.65),
                   ],
+                  stops: const [0.0, 0.3, 1.0],
                 ),
               ),
             ),
-          ),
-          Positioned(
-            left: AppSpacing.xl,
-            right: AppSpacing.xl,
-            bottom: AppSpacing.xxl,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'TIFFANI',
-                  style: AppTextStyles.hero,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  HomeStrings.heroSubtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white.withValues(alpha: 0.75),
-                    letterSpacing: 0.5,
-                    height: 1.4,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        onPressed: () => _navigateToCatalog(context),
+                        icon: const Icon(
+                          CupertinoIcons.search,
+                          color: Colors.white,
+                          size: 22,
+                          shadows: _heroIconShadows,
+                        ),
+                      ),
+                      const _FavoritesButton(),
+                      IconButton(
+                        onPressed: () => context.push(RouteNames.account),
+                        icon: const Icon(
+                          CupertinoIcons.person_crop_circle,
+                          color: Colors.white,
+                          size: 22,
+                          shadows: _heroIconShadows,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        ],
+            Positioned(
+              left: AppSpacing.xl,
+              right: AppSpacing.xl,
+              bottom: AppSpacing.xxl,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'TIFFANI',
+                    style: AppTextStyles.hero,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    HomeStrings.heroSubtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white.withValues(alpha: 0.75),
+                      letterSpacing: 0.5,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/footer_curve_clipper.dart';
 import '../home_strings.dart';
 
 const _telegramUrl = 'https://t.me/tiffani_beauty';
@@ -32,84 +33,108 @@ class HomeContactsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 40),
-      decoration: const BoxDecoration(
-        color: AppColors.footerSurface,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xxl,
-              36,
-              AppSpacing.xxl,
-              0,
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: ClipPath(
+        clipper: const FooterCurveClipper(),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            const Positioned.fill(
+              child: ColoredBox(color: AppColors.footerSurface),
             ),
-            child: Text(
-              HomeStrings.contactsSection.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: AppColors.footerTextPrimary,
-                letterSpacing: 2.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xxl),
-          _ContactGroup(
-            label: HomeStrings.contactsPhones,
-            children: [
-              for (final phone in _phones)
-                _TappableRow(
-                  text: phone,
-                  onTap: () =>
-                      _launch('tel:${phone.replaceAll(' ', '')}'),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.08),
+                        Colors.black.withValues(alpha: 0.03),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.25, 0.6],
+                    ),
+                  ),
                 ),
-            ],
-          ),
-          const _GroupDivider(),
-          _ContactGroup(
-            label: HomeStrings.contactsEmail,
-            children: [
-              _TappableRow(
-                text: _email,
-                secondary: true,
-                onTap: () => _launch('mailto:$_email'),
-              ),
-            ],
-          ),
-          const _GroupDivider(),
-          _ContactGroup(
-            label: HomeStrings.contactsStores,
-            children: [
-              for (final address in _stores)
-                _StaticRow(text: address),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xxxl),
-          const _SocialRow(),
-          const SizedBox(height: AppSpacing.xl),
-          const _LegalLinks(),
-          const SizedBox(height: AppSpacing.lg),
-          const Center(
-            child: Text(
-              'TIFFANI',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 3,
-                color: AppColors.footerWatermark,
               ),
             ),
-          ),
-          SizedBox(height: AppSpacing.xxxl + AppSpacing.xxl + bottomPadding),
-        ],
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.xxl,
+                    38,
+                    AppSpacing.xxl,
+                    0,
+                  ),
+                  child: Text(
+                    HomeStrings.contactsSection.toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.footerTextPrimary,
+                      letterSpacing: 2.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxl),
+                _ContactGroup(
+                  label: HomeStrings.contactsPhones,
+                  children: [
+                    for (final phone in _phones)
+                      _TappableRow(
+                        text: phone,
+                        onTap: () =>
+                            _launch('tel:${phone.replaceAll(' ', '')}'),
+                      ),
+                  ],
+                ),
+                const _GroupDivider(),
+                _ContactGroup(
+                  label: HomeStrings.contactsEmail,
+                  children: [
+                    _TappableRow(
+                      text: _email,
+                      secondary: true,
+                      onTap: () => _launch('mailto:$_email'),
+                    ),
+                  ],
+                ),
+                const _GroupDivider(),
+                _ContactGroup(
+                  label: HomeStrings.contactsStores,
+                  children: [
+                    for (final address in _stores)
+                      _StaticRow(text: address),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xxxl),
+                const _SocialRow(),
+                const SizedBox(height: AppSpacing.xl),
+                const _LegalLinks(),
+                const SizedBox(height: AppSpacing.lg),
+                const Center(
+                  child: Text(
+                    'TIFFANI',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 3,
+                      color: AppColors.footerWatermark,
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  height: AppSpacing.xxxl + AppSpacing.xxl + bottomPadding,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
