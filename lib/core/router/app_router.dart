@@ -1,9 +1,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/pages/account_page.dart';
-import '../../features/account/presentation/pages/login_page.dart';
-import '../../features/account/presentation/pages/order_history_page.dart';
-import '../../features/account/presentation/pages/register_page.dart';
+import '../../features/account/presentation/pages/auth_shell_page.dart';
 import '../../features/app_shell/presentation/pages/app_shell_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/cart/presentation/pages/checkout_page.dart';
@@ -93,15 +91,20 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.orderHistory,
-        builder: (context, state) => const OrderHistoryPage(),
+        builder: (context, state) =>
+            const AccountPage(showOrderHistory: true),
       ),
       GoRoute(
         path: RouteNames.login,
-        builder: (context, state) => const LoginPage(),
+        builder: (context, state) => const AuthShellPage(
+          initialMode: AuthShellMode.login,
+        ),
       ),
       GoRoute(
         path: RouteNames.register,
-        builder: (context, state) => const RegisterPage(),
+        builder: (context, state) => const AuthShellPage(
+          initialMode: AuthShellMode.register,
+        ),
       ),
       GoRoute(
         path: RouteNames.checkout,

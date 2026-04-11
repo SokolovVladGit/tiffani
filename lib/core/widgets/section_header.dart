@@ -17,7 +17,7 @@ class SectionHeader extends StatelessWidget {
     this.onAction,
     this.padding = const EdgeInsets.fromLTRB(
       AppSpacing.lg,
-      AppSpacing.xxl,
+      28,
       AppSpacing.lg,
       AppSpacing.md,
     ),

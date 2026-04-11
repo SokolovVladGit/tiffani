@@ -83,11 +83,19 @@ class AuthCubit extends Cubit<AuthCubitState> {
   }
 
   Future<void> _loadProfile() async {
-    final profile = await _repository.getProfile();
-    if (profile != null && !isClosed) {
-      emit(state.copyWith(profile: profile));
+    try {
+      final profile = await _repository.getProfile();
+      if (profile != null && !isClosed) {
+        emit(state.copyWith(profile: profile));
+      }
+    } catch (_) {
+      // Silent on load — profile section will show empty state.
     }
   }
+
+  /// Re-fetches the profile from the backend.
+  /// Useful when the account screen becomes visible again.
+  Future<void> refreshProfile() async => _loadProfile();
 
   Future<void> updateProfile({
     String? name,
@@ -95,23 +103,29 @@ class AuthCubit extends Cubit<AuthCubitState> {
     String? loyaltyCard,
   }) async {
     final current = state.profile;
-    if (current == null) return;
+    final userId = _repository.currentUser?.id;
+    if (current == null && userId == null) return;
 
+    final base = current ?? ProfileEntity(id: userId!);
     final updated = ProfileEntity(
-      id: current.id,
-      name: name ?? current.name,
-      phone: phone ?? current.phone,
-      loyaltyCard: loyaltyCard ?? current.loyaltyCard,
+      id: base.id,
+      name: name ?? base.name,
+      phone: phone ?? base.phone,
+      loyaltyCard: loyaltyCard ?? base.loyaltyCard,
     );
 
     emit(state.copyWith(isLoading: true, clearError: true));
     try {
       await _repository.upsertProfile(updated);
-      emit(state.copyWith(profile: updated, isLoading: false));
+      final refreshed = await _repository.getProfile();
+      emit(state.copyWith(
+        profile: refreshed ?? updated,
+        isLoading: false,
+      ));
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
-        errorMessage: 'Не удалось сохранить профиль',
+        errorMessage: 'Не удалось сохранить профиль: $e',
       ));
     }
   }

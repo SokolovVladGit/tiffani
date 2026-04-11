@@ -55,7 +55,7 @@ class HomeHorizontalItemCard extends StatelessWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(10, AppSpacing.sm, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, AppSpacing.sm, 10, 11),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -71,18 +71,18 @@ class HomeHorizontalItemCard extends StatelessWidget {
                       ),
                     ),
                     if (item.brand != null && item.brand!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                       Text(
                         item.brand!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                     ],
-                    const SizedBox(height: AppSpacing.xs),
+                    const SizedBox(height: 5),
                     _PriceRow(price: item.price, oldPrice: item.oldPrice),
                   ],
                 ),

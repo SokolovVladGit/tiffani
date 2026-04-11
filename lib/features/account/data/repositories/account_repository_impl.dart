@@ -5,6 +5,11 @@ import '../../domain/entities/order_summary_entity.dart';
 import '../../domain/entities/profile_entity.dart';
 import '../../domain/repositories/account_repository.dart';
 
+/// Custom scheme for Supabase auth email redirects.
+/// Must match the scheme registered in AndroidManifest.xml and Info.plist,
+/// and be allow-listed in Supabase dashboard → Auth → URL Configuration.
+const _authCallbackUrl = 'io.supabase.tiffani://auth-callback';
+
 class AccountRepositoryImpl implements AccountRepository {
   final SupabaseClient _client;
   final LoggerService _logger;
@@ -30,6 +35,7 @@ class AccountRepositoryImpl implements AccountRepository {
     final response = await _client.auth.signUp(
       email: email,
       password: password,
+      emailRedirectTo: _authCallbackUrl,
     );
     if (response.user == null) {
       throw Exception('Не удалось создать аккаунт');
@@ -93,13 +99,21 @@ class AccountRepositoryImpl implements AccountRepository {
   @override
   Future<void> upsertProfile(ProfileEntity profile) async {
     _logger.d('upsertProfile: ${profile.id}');
-    await _client.from('profiles').upsert({
-      'id': profile.id,
-      'name': profile.name,
-      'phone': profile.phone,
-      'loyalty_card': profile.loyaltyCard,
-      'updated_at': DateTime.now().toIso8601String(),
-    });
+    try {
+      await _client.from('profiles').upsert(
+        {
+          'id': profile.id,
+          'name': profile.name,
+          'phone': profile.phone,
+          'loyalty_card': profile.loyaltyCard,
+          'updated_at': DateTime.now().toIso8601String(),
+        },
+        onConflict: 'id',
+      );
+    } catch (e, st) {
+      _logger.e('upsertProfile failed: $e\n$st');
+      rethrow;
+    }
   }
 
   @override
