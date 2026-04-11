@@ -12,81 +12,42 @@ class CartRemoteDataSourceImpl implements CartRemoteDataSource {
   const CartRemoteDataSourceImpl(this._client, this._logger);
 
   @override
-  Future<void> submitOrderRequest({
-    required RequestSubmissionPayloadDto request,
+  Future<Map<String, dynamic>> submitOrderRequest({
+    required RequestSubmissionPayloadDto customer,
     required List<RequestItemPayloadDto> items,
   }) async {
     _logger.d('submitOrderRequest: ${items.length} items');
     if (items.isEmpty) {
       throw Exception('Cannot submit an empty order request');
     }
-    try {
-      await _submitViaRpc(request, items);
-    } on PostgrestException catch (e) {
-      _logger.w('RPC failed, using fallback: create_order_request_with_items — $e');
-      await _submitViaFallback(request, items);
-    }
-  }
-
-  Future<void> _submitViaRpc(
-    RequestSubmissionPayloadDto request,
-    List<RequestItemPayloadDto> items,
-  ) async {
-    final itemMaps = items.map((i) => {
-      'variant_id': i.variantId,
-      'product_id': i.productId,
-      'title': i.title,
-      'brand': i.brand,
-      'image_url': i.imageUrl,
-      'price': i.price,
-      'quantity': i.quantity,
-      'edition': i.edition,
-      'modification': i.modification,
-    }).toList();
 
     final response = await _client.rpc(
-      'create_order_request_with_items',
+      'submit_order_v2',
       params: {
-        'p_request': request.toMap(),
-        'p_items': itemMaps,
+        'p_customer': customer.toMap(),
+        'p_items': items.map((i) => i.toMap()).toList(),
       },
     );
-    _logger.d('submitOrderRequest (RPC): created request $response');
+
+    final result = response as Map<String, dynamic>;
+    final orderId = result['order_id'] as String?;
+    _logger.d('submitOrderRequest: created order $orderId');
+
+    if (orderId != null) {
+      _notifyOrder(orderId);
+    }
+
+    return result;
   }
 
-  Future<void> _submitViaFallback(
-    RequestSubmissionPayloadDto request,
-    List<RequestItemPayloadDto> items,
-  ) async {
-    try {
-      final inserted = await _client
-          .from('order_requests')
-          .insert(request.toMap())
-          .select('id')
-          .single();
-      final requestId = inserted['id'] as String;
-      _logger.d('submitOrderRequest (fallback): created request $requestId');
-
-      final itemRows = items
-          .map((i) => RequestItemPayloadDto(
-                requestId: requestId,
-                variantId: i.variantId,
-                productId: i.productId,
-                title: i.title,
-                brand: i.brand,
-                imageUrl: i.imageUrl,
-                price: i.price,
-                quantity: i.quantity,
-                edition: i.edition,
-                modification: i.modification,
-              ).toMap())
-          .toList();
-
-      await _client.from('order_request_items').insert(itemRows);
-      _logger.d('submitOrderRequest (fallback): inserted ${itemRows.length} items');
-    } catch (e) {
-      _logger.e('submitOrderRequest fallback failed: $e');
-      rethrow;
-    }
+  /// Fire-and-forget: sends Telegram notification via Edge Function.
+  /// Failures are logged but never block the user flow.
+  void _notifyOrder(String orderId) {
+    _client.functions
+        .invoke('order-notify', body: {'order_id': orderId})
+        .then((_) => _logger.d('order-notify sent for $orderId'))
+        .catchError((Object e) {
+      _logger.w('order-notify failed (non-blocking): $e');
+    });
   }
 }

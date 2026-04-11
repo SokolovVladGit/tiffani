@@ -1,5 +1,6 @@
 import '../entities/cart_item_entity.dart';
 import '../entities/cart_summary_entity.dart';
+import '../entities/order_result_entity.dart';
 import '../entities/request_form_entity.dart';
 
 abstract interface class CartRepository {
@@ -11,7 +12,7 @@ abstract interface class CartRepository {
   Future<CartSummaryEntity> getCartSummary();
   Future<int> getCartItemCount();
 
-  Future<void> submitOrderRequest({
+  Future<OrderResultEntity> submitOrderRequest({
     required RequestFormEntity form,
     required List<CartItemEntity> items,
   });

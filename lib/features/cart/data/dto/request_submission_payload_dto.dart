@@ -1,36 +1,43 @@
+/// Maps checkout form fields to the `p_customer` parameter of `submit_order_v2`.
 class RequestSubmissionPayloadDto {
-  final String customerName;
+  final String name;
   final String phone;
+  final String? email;
+  final String? deliveryMethod;
+  final String? deliveryAddress;
+  final String? paymentMethod;
+  final String? promoCode;
+  final String? loyaltyCard;
   final String? comment;
-  final int totalItems;
-  final int totalQuantity;
-  final double totalPrice;
-  final String status;
-  final String source;
+  final bool consentGiven;
   final String? userId;
 
   const RequestSubmissionPayloadDto({
-    required this.customerName,
+    required this.name,
     required this.phone,
+    this.email,
+    this.deliveryMethod,
+    this.deliveryAddress,
+    this.paymentMethod,
+    this.promoCode,
+    this.loyaltyCard,
     this.comment,
-    required this.totalItems,
-    required this.totalQuantity,
-    required this.totalPrice,
-    this.status = 'new',
-    this.source = 'mobile_app',
+    required this.consentGiven,
     this.userId,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'customer_name': customerName,
+      'name': name,
       'phone': phone,
-      'comment': comment,
-      'total_items': totalItems,
-      'total_quantity': totalQuantity,
-      'total_price': totalPrice,
-      'status': status,
-      'source': source,
+      if (email != null) 'email': email,
+      if (deliveryMethod != null) 'delivery_method': deliveryMethod,
+      if (deliveryAddress != null) 'delivery_address': deliveryAddress,
+      if (paymentMethod != null) 'payment_method': paymentMethod,
+      if (promoCode != null) 'promo_code': promoCode,
+      if (loyaltyCard != null) 'loyalty_card': loyaltyCard,
+      if (comment != null) 'comment': comment,
+      'consent_given': consentGiven,
       if (userId != null) 'user_id': userId,
     };
   }

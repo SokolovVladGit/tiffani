@@ -97,7 +97,8 @@ class CartCubit extends Cubit<CartState> {
     }
     emit(state.copyWith(isSubmitting: true, submissionSuccess: false));
     try {
-      await _submitOrderRequest(form: form, items: state.items);
+      final result =
+          await _submitOrderRequest(form: form, items: state.items);
       await _clearCart();
       final items = await _getCartItems();
       final summary = await _getCartSummary();
@@ -110,6 +111,7 @@ class CartCubit extends Cubit<CartState> {
           totalPrice: summary.totalPrice,
           isSubmitting: false,
           submissionSuccess: true,
+          lastOrderId: result.orderId,
         ),
       );
     } catch (e) {
