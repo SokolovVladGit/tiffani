@@ -36,7 +36,7 @@ class CatalogCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: 6,
+        vertical: AppSpacing.sm,
       ),
       decoration: AppDecorations.cardElevated(),
       child: Material(

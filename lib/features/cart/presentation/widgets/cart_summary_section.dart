@@ -50,17 +50,17 @@ class CartSummarySection extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: bold ? 15 : 14,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
-            color: AppColors.textPrimary,
+            fontSize: bold ? 16 : 13,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w400,
+            color: bold ? AppColors.textPrimary : AppColors.textSecondary,
           ),
         ),
         Text(
           value,
           style: TextStyle(
-            fontSize: bold ? 16 : 14,
-            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-            color: AppColors.textPrimary,
+            fontSize: bold ? 18 : 13,
+            fontWeight: bold ? FontWeight.w800 : FontWeight.w500,
+            color: bold ? AppColors.textPrimary : AppColors.textSecondary,
           ),
         ),
       ],

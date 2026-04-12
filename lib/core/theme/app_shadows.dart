@@ -24,6 +24,26 @@ class AppShadows {
     ),
   ];
 
+  /// Premium card shadow — single soft downward lift, no floor line.
+  static const cardPremium = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x09000000),
+      blurRadius: 24,
+      spreadRadius: -3,
+      offset: Offset(0, 7),
+    ),
+  ];
+
+  /// Active chip — minimal downward hint, no top/bottom stripes.
+  static const chipActive = <BoxShadow>[
+    BoxShadow(
+      color: Color(0x0D000000),
+      blurRadius: 8,
+      spreadRadius: -2,
+      offset: Offset(0, 2),
+    ),
+  ];
+
   /// Bottom-bar shadow on catalog detail page (upward, 2-layer).
   /// Slightly stronger for clean separation of the sticky CTA zone.
   static const pageBottomBar = <BoxShadow>[
@@ -57,18 +77,13 @@ class AppShadows {
     ),
   ];
 
-  /// Primary CTA button — subtle downward shadow for floating feel.
+  /// Primary CTA button — controlled mid-tone elevation.
   static const ctaButton = <BoxShadow>[
     BoxShadow(
-      color: Color(0x28000000),
-      blurRadius: 16,
+      color: Color(0x1A000000),
+      blurRadius: 20,
       spreadRadius: -2,
-      offset: Offset(0, 6),
-    ),
-    BoxShadow(
-      color: Color(0x0A000000),
-      blurRadius: 4,
-      offset: Offset(0, 2),
+      offset: Offset(0, 8),
     ),
   ];
 

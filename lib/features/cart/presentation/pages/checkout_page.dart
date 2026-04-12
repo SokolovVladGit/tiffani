@@ -5,15 +5,16 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_back_button.dart';
-import '../../../../core/widgets/sticky_cta_bar.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../../account/presentation/cubit/auth_cubit.dart';
 import '../../../account/presentation/cubit/auth_state.dart';
+import '../../domain/entities/fulfillment_option.dart';
+import '../../domain/entities/payment_option.dart';
+import '../../domain/entities/pickup_store.dart';
 import '../../domain/entities/request_form_entity.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -35,8 +36,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _addressCtrl = TextEditingController();
   final _commentCtrl = TextEditingController();
 
-  String _delivery = _DeliveryOption.values.first.label;
-  String _payment = _PaymentOption.values.first.label;
+  FulfillmentOption _fulfillment = FulfillmentOption.values.first;
+  PickupStore? _selectedStore;
+  PaymentOption _payment = PaymentOption.values.first;
   bool _consent = false;
 
   @override
@@ -63,7 +65,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _prefillFromAuth(auth);
   }
 
-  /// Fills empty controllers from auth/profile data without overwriting edits.
   void _prefillFromAuth(AuthCubitState auth) {
     if (_nameCtrl.text.isEmpty && auth.profile?.name != null) {
       _nameCtrl.text = auth.profile!.name!;
@@ -79,12 +80,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
-  bool get _needsAddress {
-    return _delivery != 'Самовывоз';
-  }
-
   void _handleSubmit(CartCubit cubit) {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_fulfillment.isPickup && _selectedStore == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Выберите магазин для самовывоза')),
+        );
+      return;
+    }
+
     if (!_consent) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -103,17 +110,24 @@ class _CheckoutPageState extends State<CheckoutPage> {
         email: _emailCtrl.text.isEmpty ? null : _emailCtrl.text,
         promoCode: _promoCtrl.text.isEmpty ? null : _promoCtrl.text,
         loyaltyCard: _loyaltyCtrl.text.isEmpty ? null : _loyaltyCtrl.text,
-        deliveryMethod: _delivery,
-        address: _addressCtrl.text.isEmpty ? null : _addressCtrl.text,
-        paymentMethod: _payment,
         comment: _commentCtrl.text.isEmpty ? null : _commentCtrl.text,
         consentGiven: _consent,
+        fulfillment: _fulfillment,
+        pickupStore: _fulfillment.isPickup ? _selectedStore : null,
+        deliveryAddress: _fulfillment.isDelivery
+            ? (_addressCtrl.text.isEmpty ? null : _addressCtrl.text)
+            : null,
+        payment: _payment,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final topInset = mq.padding.top;
+    final bottomInset = mq.padding.bottom;
+
     return BlocProvider.value(
       value: sl<CartCubit>(),
       child: BlocListener<CartCubit, CartState>(
@@ -137,104 +151,178 @@ class _CheckoutPageState extends State<CheckoutPage> {
           }
         },
         child: Scaffold(
-          appBar: AppBar(
-            leading: const Center(child: AppBackButton()),
-            title: const Text('Оформление заявки'),
-          ),
-          body: Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.only(
-                top: AppSpacing.sm,
-                bottom: 120,
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/home/order_bg.jpg',
+                  fit: BoxFit.cover,
+                ),
               ),
+              Form(
+                key: _formKey,
+                child: ListView(
+                  padding: EdgeInsets.only(
+                    top: topInset + kToolbarHeight + AppSpacing.lg,
+                    bottom: 140,
+                  ),
+                  children: [
+                    _buildOrderSummary(),
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildContactSection(),
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildSectionCard(
+                      title: 'Промокод и карта клиента',
+                      children: [
+                        _buildField(
+                          controller: _promoCtrl,
+                          hint: 'Промокод',
+                          action: TextInputAction.next,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildField(
+                          controller: _loyaltyCtrl,
+                          hint: 'Номер карты клиента',
+                          action: TextInputAction.next,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildFulfillmentSection(),
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildSectionCard(
+                      title: 'Способ оплаты',
+                      children: [
+                        ...PaymentOption.values.map(
+                          (o) => _SelectionCard(
+                            label: o.label,
+                            subtitle: o.subtitle,
+                            selected: _payment == o,
+                            onTap: () => setState(() => _payment = o),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildSectionCard(
+                      title: 'Комментарий к заказу',
+                      children: [
+                        _buildField(
+                          controller: _commentCtrl,
+                          hint: 'Ваш комментарий (необязательно)',
+                          maxLines: 3,
+                          action: TextInputAction.done,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildConsentRow(),
+                  ],
+                ),
+              ),
+              _buildFloatingHeader(topInset),
+              _buildBottomCta(bottomInset),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transparent floating header
+  // ---------------------------------------------------------------------------
+
+  Widget _buildFloatingHeader(double topInset) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        padding: EdgeInsets.only(top: topInset),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            stops: [0.0, 0.55, 1.0],
+            colors: [
+              Color(0xCCF5F5F5),
+              Color(0x88F5F5F5),
+              Color(0x00F5F5F5),
+            ],
+          ),
+        ),
+        child: SizedBox(
+          height: kToolbarHeight + 16,
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Row(
               children: [
-                _buildOrderSummary(),
-                _buildContactSection(),
-                _buildSectionCard(
-                  title: 'Промокод и карта клиента',
-                  children: [
-                    _buildField(
-                      controller: _promoCtrl,
-                      hint: 'Промокод',
-                      action: TextInputAction.next,
+                const SizedBox(width: AppSpacing.xs),
+                const AppBackButton(),
+                const Expanded(
+                  child: Text(
+                    'Оформление заявки',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                      decoration: TextDecoration.none,
                     ),
-                    const SizedBox(height: AppSpacing.md),
-                    _buildField(
-                      controller: _loyaltyCtrl,
-                      hint: 'Номер карты клиента',
-                      action: TextInputAction.next,
-                    ),
-                  ],
+                  ),
                 ),
-                _buildSectionCard(
-                  title: 'Способ доставки',
-                  children: [
-                    ..._DeliveryOption.values.map(
-                      (o) => _RadioTile(
-                        label: o.label,
-                        subtitle: o.subtitle,
-                        selected: _delivery == o.label,
-                        onTap: () => setState(() => _delivery = o.label),
-                      ),
-                    ),
-                    if (_needsAddress) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      _buildField(
-                        controller: _addressCtrl,
-                        hint: 'Адрес доставки',
-                        action: TextInputAction.next,
-                        maxLines: 2,
-                        validator:
-                            _requiredValidator('Укажите адрес доставки'),
-                      ),
-                    ],
-                  ],
-                ),
-                _buildSectionCard(
-                  title: 'Способ оплаты',
-                  children: [
-                    ..._PaymentOption.values.map(
-                      (o) => _RadioTile(
-                        label: o.label,
-                        subtitle: o.subtitle,
-                        selected: _payment == o.label,
-                        onTap: () => setState(() => _payment = o.label),
-                      ),
-                    ),
-                  ],
-                ),
-                _buildSectionCard(
-                  title: 'Комментарий к заказу',
-                  children: [
-                    _buildField(
-                      controller: _commentCtrl,
-                      hint: 'Ваш комментарий (необязательно)',
-                      maxLines: 3,
-                      action: TextInputAction.done,
-                    ),
-                  ],
-                ),
-                _buildConsentRow(),
+                const SizedBox(width: 36 + AppSpacing.xs),
               ],
             ),
           ),
-          bottomNavigationBar: BlocBuilder<CartCubit, CartState>(
-            buildWhen: (prev, curr) =>
-                prev.isSubmitting != curr.isSubmitting,
-            builder: (context, state) {
-              return StickyCtaBar(
-                child: TiffanyPrimaryButton(
-                  label: 'Оформить заказ',
-                  onPressed: state.isSubmitting
-                      ? null
-                      : () => _handleSubmit(context.read<CartCubit>()),
-                  isLoading: state.isSubmitting,
-                ),
-              );
-            },
-          ),
         ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bottom CTA with light gradient
+  // ---------------------------------------------------------------------------
+
+  Widget _buildBottomCta(double bottomInset) {
+    return Positioned(
+      bottom: 0,
+      left: 0,
+      right: 0,
+      child: BlocBuilder<CartCubit, CartState>(
+        buildWhen: (prev, curr) =>
+            prev.isSubmitting != curr.isSubmitting,
+        builder: (context, state) {
+          return Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                stops: [0.0, 0.4, 1.0],
+                colors: [
+                  Color(0x00FFFFFF),
+                  Color(0xCCF5F5F5),
+                  Color(0xEEF5F5F5),
+                ],
+              ),
+            ),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xl,
+              AppSpacing.xl,
+              AppSpacing.xl,
+              AppSpacing.md + bottomInset,
+            ),
+            child: TiffanyPrimaryButton(
+              label: 'Оформить заказ',
+              onPressed: state.isSubmitting
+                  ? null
+                  : () => _handleSubmit(context.read<CartCubit>()),
+              isLoading: state.isSubmitting,
+            ),
+          );
+        },
       ),
     );
   }
@@ -254,11 +342,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
           child: Container(
-            margin: const EdgeInsets.fromLTRB(
-              AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm,
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl,
+              vertical: AppSpacing.xl + 2,
             ),
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: AppDecorations.cardSoft(radius: AppRadius.lg),
+            decoration: _summaryDecoration(),
             child: Row(
               children: [
                 Expanded(
@@ -273,12 +362,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: 3),
                       Text(
                         '${state.totalItems} поз. · ${state.totalQuantity} шт.',
                         style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          color: AppColors.textTertiary,
                         ),
                       ),
                     ],
@@ -287,10 +376,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 Text(
                   PriceFormatter.formatRub(state.totalPrice),
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary,
-                    letterSpacing: -0.3,
+                    letterSpacing: -0.5,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -364,8 +453,99 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ---------------------------------------------------------------------------
+  // Fulfillment section: method selector + store picker / address field
+  // ---------------------------------------------------------------------------
+
+  Widget _buildFulfillmentSection() {
+    return _buildSectionCard(
+      title: 'Способ получения',
+      children: [
+        ...FulfillmentOption.values.map(
+          (o) => _SelectionCard(
+            label: o.label,
+            subtitle: o.subtitle,
+            selected: _fulfillment == o,
+            onTap: () => setState(() {
+              _fulfillment = o;
+              if (o.isDelivery) _selectedStore = null;
+            }),
+          ),
+        ),
+        if (_fulfillment.isPickup) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Выберите магазин',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          ...PickupStore.all.map(
+            (store) => _SelectionCard(
+              label: store.label,
+              subtitle: null,
+              selected: _selectedStore?.id == store.id,
+              onTap: () => setState(() => _selectedStore = store),
+            ),
+          ),
+        ],
+        if (_fulfillment.isDelivery) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _buildField(
+            controller: _addressCtrl,
+            hint: 'Адрес доставки',
+            action: TextInputAction.next,
+            maxLines: 2,
+            validator: _requiredValidator('Укажите адрес доставки'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
   // Section card
   // ---------------------------------------------------------------------------
+
+  static BoxDecoration _summaryDecoration() => BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.45),
+          width: 0.5,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 16,
+            offset: Offset(0, 3),
+          ),
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      );
+
+  static BoxDecoration _sectionDecoration() => BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+          BoxShadow(
+            color: Color(0x04000000),
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ],
+      );
 
   Widget _buildSectionCard({
     required String title,
@@ -373,11 +553,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
     Widget? trailing,
   }) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.sm,
-      ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: AppDecorations.cardSoft(radius: AppRadius.lg),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: _sectionDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -396,7 +574,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               ?trailing,
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.lg),
           ...children,
         ],
       ),
@@ -463,17 +641,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
               width: 22,
               height: 22,
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
                 decoration: BoxDecoration(
                   color: _consent ? AppColors.seed : Colors.transparent,
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(
                     color: _consent ? AppColors.seed : AppColors.border,
                     width: _consent ? 0 : 1.5,
                   ),
                 ),
                 child: _consent
-                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
                     : null,
               ),
             ),
@@ -496,47 +675,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
 }
 
 // =============================================================================
-// Delivery options
+// Selection card with animated radio indicator and tap feedback
 // =============================================================================
 
-enum _DeliveryOption {
-  pickup('Самовывоз', 'Бесплатно'),
-  tiraspol('Доставка по Тирасполю', null),
-  bender('Доставка по Бендерам', null),
-  express('Экспресс-почта', null),
-  moldova('Доставка по Молдове', null);
-
-  final String label;
-  final String? subtitle;
-  const _DeliveryOption(this.label, this.subtitle);
-}
-
-// =============================================================================
-// Payment options
-// =============================================================================
-
-enum _PaymentOption {
-  cash('Наличные', null),
-  mobile('Мобильный платёж', null),
-  bank('Оплата по реквизитам банка', null),
-  klever('Рассрочка по карте Клевер', 'Беспроцентная');
-
-  final String label;
-  final String? subtitle;
-  const _PaymentOption(this.label, this.subtitle);
-}
-
-// =============================================================================
-// Radio tile
-// =============================================================================
-
-class _RadioTile extends StatelessWidget {
+class _SelectionCard extends StatefulWidget {
   final String label;
   final String? subtitle;
   final bool selected;
   final VoidCallback onTap;
 
-  const _RadioTile({
+  const _SelectionCard({
     required this.label,
     this.subtitle,
     required this.selected,
@@ -544,51 +692,153 @@ class _RadioTile extends StatelessWidget {
   });
 
   @override
+  State<_SelectionCard> createState() => _SelectionCardState();
+}
+
+class _SelectionCardState extends State<_SelectionCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _tapCtrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _tapCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+      reverseDuration: const Duration(milliseconds: 180),
+    );
+    _scale = Tween(begin: 1.0, end: 0.975).animate(
+      CurvedAnimation(parent: _tapCtrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _tapCtrl.dispose();
+    super.dispose();
+  }
+
+  void _handleTapDown(TapDownDetails _) => _tapCtrl.forward();
+  void _handleTapUp(TapUpDetails _) => _tapCtrl.reverse();
+  void _handleTapCancel() => _tapCtrl.reverse();
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Row(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: selected ? AppColors.seed : AppColors.textTertiary,
-                  width: selected ? 6 : 1.5,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        onTap: widget.onTap,
+        child: ScaleTransition(
+          scale: _scale,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.md,
+            ),
+            decoration: BoxDecoration(
+              color: widget.selected
+                  ? AppColors.surfaceDim
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: widget.selected
+                    ? AppColors.seed.withValues(alpha: 0.4)
+                    : AppColors.border.withValues(alpha: 0.35),
+                width: widget.selected ? 1.0 : 0.5,
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle!,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+            child: Row(
+              children: [
+                _AnimatedRadio(selected: widget.selected),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: widget.selected
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                    ),
+                      if (widget.subtitle != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            widget.subtitle!,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Animated radio indicator
+// =============================================================================
+
+class _AnimatedRadio extends StatelessWidget {
+  final bool selected;
+
+  const _AnimatedRadio({required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? AppColors.seed : AppColors.textTertiary,
+            width: selected ? 2.0 : 1.5,
+          ),
+        ),
+        child: Center(
+          child: AnimatedScale(
+            scale: selected ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutBack,
+            child: Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.seed,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.seed.withValues(alpha: 0.2),
+                    blurRadius: 4,
+                    spreadRadius: 1,
+                  ),
                 ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

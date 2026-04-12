@@ -7,17 +7,16 @@ class AppGradients {
   AppGradients._();
 
   // ---------------------------------------------------------------------------
-  // TiffanyPrimaryButton — soft-dark premium CTA
+  // TiffanyPrimaryButton — warm mid-tone premium CTA
   // ---------------------------------------------------------------------------
 
-  /// Soft-dark gradient for the primary CTA. Slightly lifted from pure black
-  /// so the surface reads as refined charcoal rather than flat ink.
+  /// Clean warm-neutral graphite gradient — mid-tone, refined luxury.
   static const primaryButton = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF252525),
-      Color(0xFF181818),
+      Color(0xFF928C86),
+      Color(0xFF76716B),
     ],
   );
 

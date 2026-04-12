@@ -10,6 +10,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../domain/entities/article_block_entity.dart';
 import '../cubit/article_details_cubit.dart';
 import '../cubit/article_details_state.dart';
@@ -51,13 +52,22 @@ class _ArticleDetailsPageState extends State<ArticleDetailsPage> {
     return BlocProvider.value(
       value: _cubit,
       child: Scaffold(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.transparent,
         body: AnnotatedRegion<SystemUiOverlayStyle>(
           value: _hasImage
               ? SystemUiOverlayStyle.light
               : SystemUiOverlayStyle.dark,
           child: Stack(
             children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/home/bg.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0x38FFFFFF)),
+              ),
               CustomScrollView(
                 slivers: [
                   SliverToBoxAdapter(
@@ -143,49 +153,47 @@ class _HeroCover extends StatelessWidget {
     final topPadding = MediaQuery.of(context).padding.top;
     final imageHeight = topPadding + 260;
 
-    Widget content = SizedBox(
-      height: imageHeight,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          CachedNetworkImage(
-            imageUrl: imageUrl!,
-            width: double.infinity,
-            height: imageHeight,
-            fit: BoxFit.cover,
-            placeholder: (_, __) => Container(
+    Widget content = ClipPath(
+      clipper: const HeroCurveClipper(amplitude: 10),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: imageHeight,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            CachedNetworkImage(
+              imageUrl: imageUrl!,
+              width: double.infinity,
               height: imageHeight,
-              color: AppColors.skeleton,
+              fit: BoxFit.cover,
+              placeholder: (_, __) => Container(
+                height: imageHeight,
+                color: AppColors.skeleton,
+              ),
+              errorWidget: (_, __, ___) => Container(
+                height: imageHeight,
+                color: AppColors.skeleton,
+              ),
             ),
-            errorWidget: (_, __, ___) => Container(
-              height: imageHeight,
-              color: AppColors.skeleton,
-            ),
-          ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 100,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    AppColors.surface.withValues(alpha: 0.03),
-                    AppColors.surface.withValues(alpha: 0.1),
-                    AppColors.surface.withValues(alpha: 0.3),
-                    AppColors.surface.withValues(alpha: 0.65),
-                    AppColors.surface,
-                  ],
-                  stops: const [0.0, 0.25, 0.45, 0.65, 0.82, 1.0],
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.08),
+                      Colors.transparent,
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.25),
+                    ],
+                    stops: const [0.0, 0.2, 0.5, 1.0],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
 

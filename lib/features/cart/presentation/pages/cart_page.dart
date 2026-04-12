@@ -7,7 +7,6 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/app_failure_view.dart';
-import '../../../../core/widgets/sticky_cta_bar.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
@@ -35,7 +34,14 @@ class _CartPageState extends State<CartPage> {
     return BlocProvider.value(
       value: sl<CartCubit>(),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           leading: const Center(child: AppBackButton()),
           title: const Text('Корзина'),
           actions: [
@@ -55,21 +61,38 @@ class _CartPageState extends State<CartPage> {
             ),
           ],
         ),
-        body: const _CartBody(),
-        bottomNavigationBar: BlocBuilder<CartCubit, CartState>(
-          buildWhen: (prev, curr) =>
-              prev.status != curr.status || prev.isEmpty != curr.isEmpty,
-          builder: (context, state) {
-            if (state.status != CartStatus.success || state.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            return StickyCtaBar(
-              child: TiffanyPrimaryButton(
-                label: 'Оформить заявку',
-                onPressed: () => context.push(RouteNames.checkout),
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/home/bg.jpg',
+                fit: BoxFit.cover,
               ),
-            );
-          },
+            ),
+            const Positioned.fill(
+              child: ColoredBox(color: Color(0x38FFFFFF)),
+            ),
+            const SafeArea(child: _CartBody()),
+            BlocBuilder<CartCubit, CartState>(
+              buildWhen: (prev, curr) =>
+                  prev.status != curr.status || prev.isEmpty != curr.isEmpty,
+              builder: (context, state) {
+                if (state.status != CartStatus.success || state.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                final bottomInset = MediaQuery.of(context).padding.bottom;
+                return Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 16 + bottomInset,
+                  child: TiffanyPrimaryButton(
+                    label: 'Оформить заявку',
+                    onPressed: () => context.push(RouteNames.checkout),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -110,10 +133,11 @@ class _CartContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cubit = context.read<CartCubit>();
+    final bottomInset = MediaQuery.of(context).padding.bottom;
     return ListView(
-      padding: const EdgeInsets.only(
+      padding: EdgeInsets.only(
         top: AppSpacing.xs,
-        bottom: AppSpacing.lg,
+        bottom: 80 + bottomInset,
       ),
       children: [
         ...state.items.map(

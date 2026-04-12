@@ -16,22 +16,19 @@ class AppDecorations {
         border: Border.all(color: AppColors.border, width: _borderWidth),
       );
 
-  /// Soft card with a hairline border for definition against gray backgrounds.
+  /// Soft card — solid white, no border, downward shadow only.
   static BoxDecoration cardSoft({double radius = AppRadius.lg}) =>
       BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.5),
-          width: _borderWidth,
-        ),
+        boxShadow: AppShadows.cardPremium,
       );
 
   static BoxDecoration cardElevated({double radius = AppRadius.lg}) =>
       BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(radius),
-        boxShadow: AppShadows.cardElevated,
+        boxShadow: AppShadows.cardPremium,
       );
 
   static BoxDecoration skeleton({double radius = AppRadius.sm}) =>

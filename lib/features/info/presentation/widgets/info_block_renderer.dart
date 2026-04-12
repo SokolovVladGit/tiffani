@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_gradients.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../domain/entities/info_block_entity.dart';
 
@@ -94,113 +94,93 @@ class _HeroBlock extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (block.imageUrl != null && block.imageUrl!.isNotEmpty)
-          SizedBox(
-            height: imageHeight,
-            width: double.infinity,
-            child: Stack(
-              clipBehavior: Clip.hardEdge,
-              children: [
-                Positioned(
-                  top: -_parallaxExtra + parallaxShift,
-                  left: 0,
-                  right: 0,
-                  height: imageHeight + _parallaxExtra * 2,
-                  child: CachedNetworkImage(
-                    imageUrl: block.imageUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) =>
-                        Container(color: AppColors.skeleton),
-                    errorWidget: (_, __, ___) =>
-                        Container(color: AppColors.skeleton),
+          ClipPath(
+            clipper: const HeroCurveClipper(amplitude: 10),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              height: imageHeight,
+              width: double.infinity,
+              child: Stack(
+                clipBehavior: Clip.hardEdge,
+                children: [
+                  Positioned(
+                    top: -_parallaxExtra + parallaxShift,
+                    left: 0,
+                    right: 0,
+                    height: imageHeight + _parallaxExtra * 2,
+                    child: CachedNetworkImage(
+                      imageUrl: block.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          Container(color: AppColors.skeleton),
+                      errorWidget: (_, __, ___) =>
+                          Container(color: AppColors.skeleton),
+                    ),
                   ),
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withValues(alpha: 0.10),
-                          Colors.transparent,
-                          Colors.transparent,
-                          Colors.black.withValues(alpha: 0.18),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.2, 0.5, 0.72, 1.0],
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.10),
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: 0.45),
+                          ],
+                          stops: const [0.0, 0.2, 0.45, 1.0],
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: 140,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          AppColors.surface.withValues(alpha: 0),
-                          AppColors.surface.withValues(alpha: 0),
-                          AppColors.surface.withValues(alpha: 0.08),
-                          AppColors.surface.withValues(alpha: 0.35),
-                          AppColors.surface.withValues(alpha: 0.75),
-                          AppColors.surface,
+                  Positioned(
+                    left: AppSpacing.xxl,
+                    right: AppSpacing.xxl,
+                    bottom: 36,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (block.title != null)
+                          Text(
+                            block.title!,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                              height: 1.15,
+                              letterSpacing: -0.3,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.35),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (block.subtitle != null) ...[
+                          const SizedBox(height: AppSpacing.sm),
+                          Text(
+                            block.subtitle!,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.9),
+                              height: 1.4,
+                              shadows: [
+                                Shadow(
+                                  color: Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: 10,
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
-                        stops: const [0.0, 0.35, 0.50, 0.68, 0.85, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: AppSpacing.xxl,
-                  right: AppSpacing.xxl,
-                  bottom: 48,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (block.title != null)
-                        Text(
-                          block.title!,
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
-                            height: 1.15,
-                            letterSpacing: -0.3,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.35),
-                                blurRadius: 12,
-                              ),
-                            ],
-                          ),
-                        ),
-                      if (block.subtitle != null) ...[
-                        const SizedBox(height: AppSpacing.sm),
-                        Text(
-                          block.subtitle!,
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            height: 1.4,
-                            shadows: [
-                              Shadow(
-                                color: Colors.black.withValues(alpha: 0.3),
-                                blurRadius: 10,
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           )
         else
@@ -300,8 +280,16 @@ class _RegionCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: AppGradients.regionCard,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(AppRadius.xxl),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 24,
+            spreadRadius: -2,
+            offset: Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -315,10 +303,10 @@ class _RegionCard extends StatelessWidget {
               children: [
                 Container(
                   width: 3,
-                  height: 22,
+                  height: 24,
                   margin: const EdgeInsets.only(top: 1),
                   decoration: BoxDecoration(
-                    color: AppColors.action.withValues(alpha: 0.38),
+                    color: AppColors.textPrimary.withValues(alpha: 0.18),
                     borderRadius: BorderRadius.circular(1.5),
                   ),
                 ),
@@ -327,10 +315,11 @@ class _RegionCard extends StatelessWidget {
                   child: Text(
                     name,
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
-                      height: 1.3,
+                      height: 1.25,
+                      letterSpacing: -0.2,
                     ),
                   ),
                 ),
@@ -348,7 +337,7 @@ class _RegionCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 14,
                       color: AppColors.textDense,
-                      height: 1.65,
+                      height: 1.7,
                     ),
                   ),
               ],
@@ -360,21 +349,22 @@ class _RegionCard extends StatelessWidget {
                 AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0,
               ),
               child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 7,
+                  horizontal: 16,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.deliveryNoteSurface,
+                  color: const Color(0xFFF8F8F8),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   freeNote,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: AppColors.action.withValues(alpha: 0.85),
-                    height: 1.4,
+                    color: Color(0xFF444444),
+                    height: 1.45,
                   ),
                 ),
               ),
@@ -399,7 +389,7 @@ class _RegionCard extends StatelessWidget {
           if (disclaimer != null || paymentNote != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, 0,
+                AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, 0,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +400,7 @@ class _RegionCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textTertiary,
-                        height: 1.55,
+                        height: 1.6,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -422,14 +412,14 @@ class _RegionCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 12,
                         color: AppColors.textTertiary,
-                        height: 1.55,
+                        height: 1.6,
                       ),
                     ),
                 ],
               ),
             ),
 
-          const SizedBox(height: 28),
+          const SizedBox(height: 30),
         ],
       ),
     );
@@ -455,12 +445,12 @@ class _DeliveryGroup extends StatelessWidget {
             label.toUpperCase(),
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.labelMuted,
-              letterSpacing: 1.1,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF777777),
+              letterSpacing: 1.2,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: 10),
           for (int i = 0; i < children.length; i++) ...[
             if (i > 0) const SizedBox(height: 4),
             children[i],
@@ -881,8 +871,16 @@ class _CtaBlock extends StatelessWidget {
           AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl,
         ),
         decoration: BoxDecoration(
-          color: AppColors.ctaSurface,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppRadius.xxl),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0F000000),
+              blurRadius: 24,
+              spreadRadius: -2,
+              offset: Offset(0, 10),
+            ),
+          ],
         ),
         child: Column(
           children: [

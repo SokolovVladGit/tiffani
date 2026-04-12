@@ -129,18 +129,30 @@ class CartRepositoryImpl implements CartRepository {
       throw Exception('Cart is empty');
     }
 
+    final f = form.fulfillment;
+
+    final legacyAddress = f.isPickup
+        ? null
+        : _nullIfEmpty(form.deliveryAddress);
+
     final customer = RequestSubmissionPayloadDto(
       name: form.name.trim(),
       phone: form.phone.trim(),
       email: _nullIfEmpty(form.email),
-      deliveryMethod: _nullIfEmpty(form.deliveryMethod),
-      deliveryAddress: _nullIfEmpty(form.address),
-      paymentMethod: _nullIfEmpty(form.paymentMethod),
       promoCode: _nullIfEmpty(form.promoCode),
       loyaltyCard: _nullIfEmpty(form.loyaltyCard),
       comment: _nullIfEmpty(form.comment),
       consentGiven: form.consentGiven,
       userId: _supabaseClient.auth.currentUser?.id,
+      deliveryMethod: f.legacyDeliveryMethod,
+      deliveryAddress: legacyAddress,
+      paymentMethod: form.payment.legacyPaymentMethod,
+      fulfillmentType: f.fulfillmentType,
+      fulfillmentMethodCode: f.methodCode,
+      fulfillmentFee: f.fee,
+      pickupStoreId: f.isPickup ? form.pickupStore?.id : null,
+      deliveryZoneCode: f.isDelivery ? f.zoneCode : null,
+      paymentMethodCode: form.payment.code,
     );
 
     final itemPayloads = items

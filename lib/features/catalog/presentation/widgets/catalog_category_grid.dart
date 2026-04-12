@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
+import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/tiffany_cream_surface.dart';
 
 class CatalogCategoryGrid extends StatelessWidget {
   final List<String> categories;
@@ -89,25 +89,33 @@ class _CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: TiffanyCreamSurface(
-        toneIndex: index,
-        intensity: isSelected
-            ? TiffanyCreamIntensity.primary
-            : TiffanyCreamIntensity.subtle,
-        borderRadius: AppRadius.lg,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? AppColors.textPrimary
-                : AppColors.textSecondary,
-            letterSpacing: isSelected ? 0.3 : 0,
-            height: 1.3,
+      child: DecoratedBox(
+        decoration: isSelected
+            ? BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(
+                  color: const Color(0x0A000000),
+                  width: 0.5,
+                ),
+                boxShadow: AppShadows.chipActive,
+              )
+            : const BoxDecoration(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? AppColors.textPrimary
+                  : AppColors.textSecondary,
+              letterSpacing: isSelected ? 0.3 : 0,
+              height: 1.3,
+            ),
           ),
         ),
       ),

@@ -62,8 +62,22 @@ class _HomePageState extends State<HomePage> {
         BlocProvider.value(value: _topBrandsCubit),
         BlocProvider.value(value: _articlesCubit),
       ],
-      child: const Scaffold(
-        body: _HomeBody(),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/home/bg.jpg',
+                fit: BoxFit.cover,
+              ),
+            ),
+            const Positioned.fill(
+              child: ColoredBox(color: Color(0x38FFFFFF)),
+            ),
+            const _HomeBody(),
+          ],
+        ),
       ),
     );
   }
