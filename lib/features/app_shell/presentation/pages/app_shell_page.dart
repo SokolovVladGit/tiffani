@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,8 +8,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/injector.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_gradients.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../cart/presentation/cubit/cart_cubit.dart';
@@ -55,18 +55,36 @@ class AppShellPage extends StatelessWidget {
             left: AppSpacing.lg,
             right: AppSpacing.lg,
             bottom: bottomInset + AppSpacing.sm,
-            child: Container(
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                borderRadius: BorderRadius.all(Radius.circular(_capsuleRadius)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x16000000),
+                    blurRadius: 24,
+                    offset: Offset(0, 6),
+                  ),
+                  BoxShadow(
+                    color: Color(0x08000000),
+                    blurRadius: 6,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(_capsuleRadius),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
               height: _barHeight,
               decoration: BoxDecoration(
-                gradient: AppGradients.navBar,
+                color: const Color(0xF0FFFFFF),
                 borderRadius: BorderRadius.circular(_capsuleRadius),
                 border: Border.all(
-                  color: AppColors.navBorder,
-                  width: 0.5,
+                  color: const Color(0x80FFFFFF),
+                  width: 1,
                 ),
-                boxShadow: AppShadows.navBar,
               ),
-              clipBehavior: Clip.antiAlias,
               child: BlocSelector<CartCubit, CartState, int>(
                 bloc: sl<CartCubit>(),
                 selector: (state) => state.totalQuantity,
@@ -144,6 +162,9 @@ class AppShellPage extends StatelessWidget {
                     }),
                   );
                 },
+              ),
+            ),
+          ),
               ),
             ),
           ),

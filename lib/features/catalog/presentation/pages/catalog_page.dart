@@ -121,21 +121,42 @@ class _CatalogPageState extends State<CatalogPage> {
         BlocProvider.value(value: _filterCubit),
       ],
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: Colors.transparent,
+        extendBodyBehindAppBar: true,
         appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           title: Text(widget.title ?? widget.initialBrand ?? 'Каталог'),
         ),
-        body: Column(
+        body: Stack(
           children: [
-            _SearchBar(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              onClear: () {
-                _searchController.clear();
-                _bloc.add(const CatalogSearchChanged(''));
-              },
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/home/bg.jpg',
+                fit: BoxFit.cover,
+              ),
             ),
-            Expanded(child: _CatalogScrollBody(bloc: _bloc)),
+            const Positioned.fill(
+              child: ColoredBox(color: Color(0x38FFFFFF)),
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  _SearchBar(
+                    controller: _searchController,
+                    onChanged: _onSearchChanged,
+                    onClear: () {
+                      _searchController.clear();
+                      _bloc.add(const CatalogSearchChanged(''));
+                    },
+                  ),
+                  Expanded(child: _CatalogScrollBody(bloc: _bloc)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -160,8 +181,7 @@ class _SearchBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.background,
+    return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
       child: TextField(
         controller: controller,
@@ -169,6 +189,8 @@ class _SearchBar extends StatelessWidget {
         style: const TextStyle(fontSize: 15),
         decoration: InputDecoration(
           hintText: 'Поиск товаров',
+          filled: true,
+          fillColor: const Color(0xDEFFFFFF),
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: ListenableBuilder(
             listenable: controller,
@@ -441,11 +463,11 @@ class _ResultCount extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: const Color(0xCCFFFFFF),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.border.withValues(alpha: 0.5),
-                width: 0.5,
+                color: const Color(0x80FFFFFF),
+                width: 1,
               ),
             ),
             child: Text(

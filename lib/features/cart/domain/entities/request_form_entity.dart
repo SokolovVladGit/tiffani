@@ -1,14 +1,20 @@
+import 'fulfillment_option.dart';
+import 'payment_option.dart';
+import 'pickup_store.dart';
+
 class RequestFormEntity {
   final String name;
   final String phone;
   final String? email;
   final String? promoCode;
   final String? loyaltyCard;
-  final String? deliveryMethod;
-  final String? address;
-  final String? paymentMethod;
   final String? comment;
   final bool consentGiven;
+
+  final FulfillmentOption fulfillment;
+  final PickupStore? pickupStore;
+  final String? deliveryAddress;
+  final PaymentOption payment;
 
   const RequestFormEntity({
     required this.name,
@@ -16,10 +22,11 @@ class RequestFormEntity {
     this.email,
     this.promoCode,
     this.loyaltyCard,
-    this.deliveryMethod,
-    this.address,
-    this.paymentMethod,
     this.comment,
     this.consentGiven = false,
+    required this.fulfillment,
+    this.pickupStore,
+    this.deliveryAddress,
+    required this.payment,
   });
 }

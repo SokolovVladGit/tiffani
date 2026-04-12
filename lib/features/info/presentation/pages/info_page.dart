@@ -41,19 +41,32 @@ class _InfoPageState extends State<InfoPage> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: Scaffold(
-          backgroundColor: AppColors.surface,
-          body: BlocBuilder<InfoCubit, InfoState>(
-            builder: (context, state) {
-              return switch (state.status) {
-                InfoStatus.initial || InfoStatus.loading =>
-                  const _LoadingView(),
-                InfoStatus.error => _ErrorView(
-                    message: state.errorMessage ?? 'Что-то пошло не так',
-                    onRetry: () => _cubit.load(),
-                  ),
-                InfoStatus.loaded => _LoadedView(blocks: state.blocks),
-              };
-            },
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/home/bg.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const Positioned.fill(
+                child: ColoredBox(color: Color(0x38FFFFFF)),
+              ),
+              BlocBuilder<InfoCubit, InfoState>(
+                builder: (context, state) {
+                  return switch (state.status) {
+                    InfoStatus.initial || InfoStatus.loading =>
+                      const _LoadingView(),
+                    InfoStatus.error => _ErrorView(
+                        message: state.errorMessage ?? 'Что-то пошло не так',
+                        onRetry: () => _cubit.load(),
+                      ),
+                    InfoStatus.loaded => _LoadedView(blocks: state.blocks),
+                  };
+                },
+              ),
+            ],
           ),
         ),
       ),

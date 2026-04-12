@@ -6,8 +6,8 @@ import '../theme/app_text_styles.dart';
 
 /// TIFFANI's primary call-to-action button.
 ///
-/// A premium monochrome pill button rendered as a near-black surface
-/// with white text and a subtle floating shadow.
+/// A premium mid-tone pill button with warm graphite gradient, soft white text,
+/// and controlled elevation.
 ///
 /// ## When to use
 /// - Primary form submissions (cart checkout, contact requests)
@@ -23,8 +23,8 @@ import '../theme/app_text_styles.dart';
 /// - Filter sheet actions (contextual, paired with reset)
 ///
 /// ## States
-/// - **Enabled**: near-black gradient, tappable.
-/// - **Disabled**: pass `onPressed: null`. Renders at reduced opacity (0.35).
+/// - **Enabled**: warm graphite gradient, tappable.
+/// - **Disabled**: pass `onPressed: null`. Renders at reduced opacity (0.38).
 /// - **Loading**: set `isLoading: true`. Shows a white spinner, disables tap.
 class TiffanyPrimaryButton extends StatelessWidget {
   /// Label text displayed centered in the button.
@@ -70,7 +70,7 @@ class TiffanyPrimaryButton extends StatelessWidget {
         width: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: Colors.white,
+          color: Color(0xFFF7F6F3),
         ),
       );
     } else if (icon != null) {
@@ -91,8 +91,12 @@ class TiffanyPrimaryButton extends StatelessWidget {
       height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(borderRadius),
           gradient: AppGradients.primaryButton,
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(
+            color: const Color(0x14FFFFFF),
+            width: 0.5,
+          ),
           boxShadow: _enabled ? AppShadows.ctaButton : null,
         ),
         child: Center(child: content),
@@ -100,7 +104,7 @@ class TiffanyPrimaryButton extends StatelessWidget {
     );
 
     if (!_enabled) {
-      surface = Opacity(opacity: 0.35, child: surface);
+      surface = Opacity(opacity: 0.38, child: surface);
     }
 
     return GestureDetector(

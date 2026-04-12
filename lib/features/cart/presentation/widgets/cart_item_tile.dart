@@ -29,7 +29,7 @@ class CartItemTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xs,
+        vertical: 6,
       ),
       decoration: AppDecorations.cardSoft(),
       padding: const EdgeInsets.all(AppSpacing.md),

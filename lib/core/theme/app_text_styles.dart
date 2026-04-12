@@ -154,11 +154,11 @@ class AppTextStyles {
   // Buttons
   // ---------------------------------------------------------------------------
 
-  /// Primary CTA button label (15/w600, white).
+  /// Primary CTA button label (15/w600, soft white).
   static const button = TextStyle(
     fontSize: 15,
     fontWeight: FontWeight.w600,
-    color: Colors.white,
+    color: Color(0xFFF7F6F3),
     letterSpacing: 0.5,
   );
 
