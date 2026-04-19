@@ -18,7 +18,7 @@ class HomeContentSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeaderBar(width: 80),
+        _buildSectionHeaderBar(width: 80, topPadding: 14),
         const SizedBox(height: AppSpacing.md),
         _buildProductStrip(),
         const SizedBox(height: AppSpacing.sm),
@@ -37,11 +37,14 @@ class HomeContentSkeleton extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeaderBar({required double width}) {
+  Widget _buildSectionHeaderBar({
+    required double width,
+    double topPadding = AppSpacing.xxl,
+  }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.lg,
-        AppSpacing.xxl,
+        topPadding,
         AppSpacing.lg,
         0,
       ),

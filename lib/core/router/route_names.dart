@@ -16,4 +16,6 @@ class RouteNames {
   static const orderHistory = '/order-history';
   static const login = '/login';
   static const register = '/register';
+  static const glossary = '/glossary';
+  static const glossaryAbout = '/glossary/about';
 }

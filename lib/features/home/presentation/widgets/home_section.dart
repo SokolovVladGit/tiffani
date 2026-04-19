@@ -10,6 +10,7 @@ class HomeSection extends StatelessWidget {
   final List<CatalogItemEntity> items;
   final String? actionText;
   final VoidCallback? onAction;
+  final EdgeInsetsGeometry? headerPadding;
 
   const HomeSection({
     super.key,
@@ -17,6 +18,7 @@ class HomeSection extends StatelessWidget {
     required this.items,
     this.actionText,
     this.onAction,
+    this.headerPadding,
   });
 
   @override
@@ -30,6 +32,13 @@ class HomeSection extends StatelessWidget {
           title: title,
           actionText: actionText,
           onAction: onAction,
+          padding: headerPadding ??
+              const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                28,
+                AppSpacing.lg,
+                AppSpacing.md,
+              ),
         ),
         SizedBox(
           height: 228,
