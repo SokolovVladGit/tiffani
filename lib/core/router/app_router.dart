@@ -11,6 +11,8 @@ import '../../features/catalog/presentation/pages/brands_page.dart';
 import '../../features/catalog/presentation/pages/catalog_details_page.dart';
 import '../../features/catalog/presentation/pages/catalog_page.dart';
 import '../../features/favorites/presentation/pages/favorites_page.dart';
+import '../../features/glossary/presentation/pages/glossary_about_page.dart';
+import '../../features/glossary/presentation/pages/glossary_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/info/presentation/pages/info_page.dart';
 import 'catalog_filter_payload.dart';
@@ -56,6 +58,16 @@ class AppRouter {
       GoRoute(
         path: RouteNames.cart,
         builder: (context, state) => const CartPage(),
+      ),
+      GoRoute(
+        path: RouteNames.glossary,
+        name: RouteNames.glossary,
+        builder: (context, state) => const GlossaryPage(),
+      ),
+      GoRoute(
+        path: RouteNames.glossaryAbout,
+        name: RouteNames.glossaryAbout,
+        builder: (context, state) => const GlossaryAboutPage(),
       ),
       GoRoute(
         path: RouteNames.catalogDetails,

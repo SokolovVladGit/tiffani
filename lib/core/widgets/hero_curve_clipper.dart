@@ -36,3 +36,44 @@ class HeroCurveClipper extends CustomClipper<Path> {
   bool shouldReclip(HeroCurveClipper oldClipper) =>
       oldClipper.amplitude != amplitude;
 }
+
+/// Clips the top of a strip so its upper edge matches [HeroCurveClipper]'s
+/// bottom curve when the strip is shifted up by [overlap] into the hero.
+///
+/// Use with [Transform.translate] `Offset(0, -overlap)` so the curve aligns
+/// with the hero’s visible bottom edge.
+class HeroContinuationClipper extends CustomClipper<Path> {
+  final double amplitude;
+  final double overlap;
+
+  const HeroContinuationClipper({
+    this.amplitude = 14.0,
+    this.overlap = 14.0,
+  });
+
+  @override
+  Path getClip(Size size) {
+    final w = size.width;
+    final h = size.height;
+    final leftY = overlap - amplitude * 0.92;
+    final rightY = overlap - amplitude;
+
+    return Path()
+      ..moveTo(0, leftY)
+      ..cubicTo(
+        w * 0.36,
+        overlap,
+        w * 0.64,
+        overlap,
+        w,
+        rightY,
+      )
+      ..lineTo(w, h)
+      ..lineTo(0, h)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(HeroContinuationClipper oldClipper) =>
+      oldClipper.amplitude != amplitude || oldClipper.overlap != overlap;
+}

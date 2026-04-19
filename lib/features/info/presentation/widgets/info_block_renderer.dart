@@ -11,6 +11,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../domain/entities/info_block_entity.dart';
+import 'blocks/blog_entry_block.dart';
 
 class InfoBlockRenderer extends StatelessWidget {
   final InfoBlockEntity block;
@@ -35,6 +36,7 @@ class InfoBlockRenderer extends StatelessWidget {
           ),
         'stores' => _StoresBlock(block: block),
         'gallery' => _GalleryBlock(block: block),
+        'blog_entry' => BlogEntryBlock(block: block),
         'cta' => _CtaBlock(block: block),
         _ => const SizedBox.shrink(),
       };

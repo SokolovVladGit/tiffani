@@ -186,6 +186,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
                           hint: 'Номер карты клиента',
                           action: TextInputAction.next,
                         ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _buildCheckoutInfoHint(
+                          'Скидка будет применена менеджером после подтверждения заказа',
+                        ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -460,6 +464,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return _buildSectionCard(
       title: 'Способ получения',
       children: [
+        _buildCheckoutInfoHint(
+          'При заказе от 1000 ₽ доставка бесплатная',
+        ),
+        const SizedBox(height: AppSpacing.sm),
         ...FulfillmentOption.values.map(
           (o) => _SelectionCard(
             label: o.label,
@@ -577,6 +585,40 @@ class _CheckoutPageState extends State<CheckoutPage> {
           const SizedBox(height: AppSpacing.lg),
           ...children,
         ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Checkout helper pill (UI only)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildCheckoutInfoHint(String message) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 300),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceWarm,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.border.withValues(alpha: 0.32),
+              width: 0.5,
+            ),
+          ),
+          child: Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.45,
+              letterSpacing: 0.22,
+              color: AppColors.textTertiary.withValues(alpha: 0.9),
+            ),
+          ),
+        ),
       ),
     );
   }
