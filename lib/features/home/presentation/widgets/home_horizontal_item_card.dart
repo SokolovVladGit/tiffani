@@ -1,13 +1,12 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/product_details_payload.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/navigation_guard.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../../catalog/domain/entities/catalog_item_entity.dart';
@@ -30,9 +29,9 @@ class HomeHorizontalItemCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () => context.push(
-            RouteNames.catalogDetails,
-            extra: ProductDetailsPayload(item: item, heroTag: heroTag),
+          onTap: () => NavigationGuard.pushCatalogDetailsOnce(
+            context,
+            ProductDetailsPayload(item: item, heroTag: heroTag),
           ),
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Column(

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/logger_service.dart';
@@ -27,15 +26,16 @@ class InfoSupabaseDataSourceImpl implements InfoSupabaseDataSource {
       for (int i = 0; i < response.length; i++) {
         try {
           blocks.add(InfoBlockDto.fromMap(response[i]));
-        } catch (e, st) {
-          debugPrint('InfoBlockDto.fromMap failed on row $i: $e\n$st');
+        } catch (e) {
+          // Soft-skip a malformed row so the rest of the page still renders.
+          // Surface as a warning so it remains visible in dev logs.
+          _logger.w('InfoBlockDto.fromMap failed on row $i: $e');
         }
       }
       _logger.d('getActiveInfoBlocks parsed: ${blocks.length} blocks');
       return blocks;
-    } catch (e, st) {
+    } catch (e) {
       _logger.e('getActiveInfoBlocks failed: $e');
-      debugPrint('getActiveInfoBlocks exception: $e\n$st');
       rethrow;
     }
   }

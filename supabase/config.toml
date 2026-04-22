@@ -1,2 +1,5 @@
 [functions.order-notify]
 verify_jwt = false
+
+[functions.consultation-notify]
+verify_jwt = false
