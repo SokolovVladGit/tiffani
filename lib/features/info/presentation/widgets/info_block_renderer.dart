@@ -3,13 +3,17 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../../../consultation/presentation/cubit/consultation_cubit.dart';
+import '../../../consultation/presentation/cubit/consultation_state.dart';
 import '../../domain/entities/info_block_entity.dart';
 import 'blocks/blog_entry_block.dart';
 
@@ -852,6 +856,11 @@ class _GalleryBlockState extends State<_GalleryBlock> {
 // ============================================================
 // CTA
 // ============================================================
+//
+// Wraps the block in its own [ConsultationCubit] so the submit flow
+// is self-contained within the Info screen. The cubit is produced by
+// [initConsultationDependencies] as a factory, so every mount gets a
+// fresh instance.
 
 class _CtaBlock extends StatelessWidget {
   final InfoBlockEntity block;
@@ -859,88 +868,286 @@ class _CtaBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return BlocProvider<ConsultationCubit>(
+      create: (_) => sl<ConsultationCubit>(),
+      child: _CtaBlockBody(block: block),
+    );
+  }
+}
+
+class _CtaBlockBody extends StatefulWidget {
+  final InfoBlockEntity block;
+
+  const _CtaBlockBody({required this.block});
+
+  @override
+  State<_CtaBlockBody> createState() => _CtaBlockBodyState();
+}
+
+class _CtaBlockBodyState extends State<_CtaBlockBody> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+
+  // Aligned with checkout_page phone validator.
+  static final _phonePattern = RegExp(r'^[\d\s\+\-\(\)]{7,20}$');
+
+  /// How long the inline success card stays visible before the form
+  /// fades back in. Kept short so the user is not left staring at
+  /// confirmation, but long enough that the transition feels intentional.
+  static const Duration _successDisplayDuration = Duration(milliseconds: 3500);
+
+  /// Pending auto-reset timer scheduled when entering the success state.
+  /// Tracked on the state so it can be cancelled on dispose or on a
+  /// subsequent state change.
+  Timer? _successResetTimer;
+
+  @override
+  void dispose() {
+    _successResetTimer?.cancel();
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  String? _requiredValidator(String? v, String message) {
+    if (v == null || v.trim().isEmpty) return message;
+    return null;
+  }
+
+  String? _nameValidator(String? v) =>
+      _requiredValidator(v, 'Укажите имя');
+
+  String? _phoneValidator(String? v) {
+    if (v == null || v.trim().isEmpty) return 'Укажите телефон';
+    if (!_phonePattern.hasMatch(v.trim())) {
+      return 'Некорректный номер телефона';
+    }
+    return null;
+  }
+
+  void _handleSubmit() {
+    final cubit = context.read<ConsultationCubit>();
+    if (cubit.state.isSubmitting) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    HapticFeedback.lightImpact();
+    cubit.submit(
+      name: _nameCtrl.text,
+      phone: _phoneCtrl.text,
+    );
+  }
+
+  void _handleSuccess(BuildContext context) {
+    // Clear field text and any stale validator messages so that when the
+    // form fades back in after the success view it is in a pristine state.
+    _formKey.currentState?.reset();
+    _nameCtrl.clear();
+    _phoneCtrl.clear();
+    FocusScope.of(context).unfocus();
+
+    // Defensive: any previously queued reset is invalidated by a new
+    // success transition. Without this, rapid successive submits could
+    // collapse the success view too early.
+    _successResetTimer?.cancel();
+    _successResetTimer = Timer(_successDisplayDuration, () {
+      if (!mounted) return;
+      context.read<ConsultationCubit>().reset();
+    });
+  }
+
+  /// Builds the default form column (kicker + title + subtitle + fields +
+  /// submit button). Extracted so the success view can swap in/out cleanly
+  /// inside an [AnimatedSwitcher] without re-declaring the layout twice.
+  Widget _buildFormColumn(
+    BuildContext context, {
+    required String? kickerText,
+    required String? title,
+    required String? subtitle,
+    required String buttonLabel,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (kickerText != null) ...[
+          Text(
+            kickerText.toUpperCase(),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.action.withValues(alpha: 0.50),
+              letterSpacing: 1.6,
+              height: 1.2,
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        if (title != null)
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 21,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+              height: 1.25,
+              letterSpacing: -0.2,
+            ),
+          ),
+        if (subtitle != null) ...[
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            subtitle,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
+          ),
+        ],
+        const SizedBox(height: 26),
+        _CtaField(
+          controller: _nameCtrl,
+          hint: 'Ваше имя',
+          icon: Icons.person_outline_rounded,
+          textInputAction: TextInputAction.next,
+          validator: _nameValidator,
+        ),
+        const SizedBox(height: 18),
+        _CtaField(
+          controller: _phoneCtrl,
+          hint: 'Телефон',
+          icon: Icons.phone_outlined,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.done,
+          validator: _phoneValidator,
+          onFieldSubmitted: (_) => _handleSubmit(),
+        ),
+        const SizedBox(height: 28),
+        BlocBuilder<ConsultationCubit, ConsultationState>(
+          buildWhen: (prev, curr) =>
+              prev.isSubmitting != curr.isSubmitting,
+          builder: (context, state) {
+            return TiffanyPrimaryButton(
+              label: buttonLabel,
+              isLoading: state.isSubmitting,
+              onPressed: state.isSubmitting ? null : _handleSubmit,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  /// Soft cross-fade with a barely-perceptible scale lift. Avoids any
+  /// translate/slide motion so the card never feels like it's "jumping".
+  Widget _ctaTransitionBuilder(Widget child, Animation<double> animation) {
+    final scale = Tween<double>(begin: 0.985, end: 1.0).animate(
+      CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+    );
+    return FadeTransition(
+      opacity: animation,
+      child: ScaleTransition(scale: scale, child: child),
+    );
+  }
+
+  void _handleFailure(BuildContext context, String? message) {
+    // Backend / network failures only. Field-level validation errors are
+    // surfaced inline by the Form validators above, never via SnackBar,
+    // so we must not try to "interpret" the raw error as a field error.
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Не удалось отправить заявку. Попробуйте ещё раз.',
+          ),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final block = widget.block;
     final buttonLabel =
         block.itemsJson?['button_label']?.toString() ?? 'Отправить';
     final kicker = block.itemsJson?['kicker']?.toString();
     final kickerText =
         kicker ?? (block.title != null ? 'КОНСУЛЬТАЦИЯ' : null);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.xxl),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0F000000),
-              blurRadius: 24,
-              spreadRadius: -2,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          children: [
-            if (kickerText != null) ...[
-              Text(
-                kickerText.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppColors.action.withValues(alpha: 0.50),
-                  letterSpacing: 1.6,
-                  height: 1.2,
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-            if (block.title != null)
-              Text(
-                block.title!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.textPrimary,
-                  height: 1.25,
-                  letterSpacing: -0.2,
-                ),
-              ),
-            if (block.subtitle != null) ...[
-              const SizedBox(height: AppSpacing.md),
-              Text(
-                block.subtitle!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
+    return BlocListener<ConsultationCubit, ConsultationState>(
+      listenWhen: (prev, curr) => prev.status != curr.status,
+      listener: (context, state) {
+        if (state.isSuccess) {
+          // Do not reset the cubit here — the inline success view stays
+          // visible while `state.isSuccess` is true and is dismissed by
+          // the auto-reset timer scheduled below.
+          _handleSuccess(context);
+        } else if (state.isFailure) {
+          // A new failure invalidates any pending success transition.
+          _successResetTimer?.cancel();
+          _successResetTimer = null;
+          _handleFailure(context, state.errorMessage);
+          context.read<ConsultationCubit>().reset();
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xxl,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.xxl),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0F000000),
+                blurRadius: 24,
+                spreadRadius: -2,
+                offset: Offset(0, 10),
               ),
             ],
-            const SizedBox(height: 26),
-            const _CtaField(
-              hint: 'Ваше имя',
-              icon: Icons.person_outline_rounded,
+          ),
+          child: Form(
+            key: _formKey,
+            child: BlocBuilder<ConsultationCubit, ConsultationState>(
+              buildWhen: (prev, curr) => prev.isSuccess != curr.isSuccess,
+              builder: (context, state) {
+                // The success view replaces the form contents in place so the
+                // CTA card stays in the same scroll position. AnimatedSize
+                // smooths any height delta between the two layouts; the
+                // AnimatedSwitcher cross-fades them with a soft scale.
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 320),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: _ctaTransitionBuilder,
+                    child: state.isSuccess
+                        ? _CtaSuccessView(
+                            key: const ValueKey('cta-success'),
+                          )
+                        : KeyedSubtree(
+                            key: const ValueKey('cta-form'),
+                            child: _buildFormColumn(
+                              context,
+                              kickerText: kickerText,
+                              title: block.title,
+                              subtitle: block.subtitle,
+                              buttonLabel: buttonLabel,
+                            ),
+                          ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 18),
-            const _CtaField(
-              hint: 'Телефон',
-              icon: Icons.phone_outlined,
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 28),
-            TiffanyPrimaryButton(
-              label: buttonLabel,
-              onPressed: () => HapticFeedback.lightImpact(),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -948,20 +1155,33 @@ class _CtaBlock extends StatelessWidget {
 }
 
 class _CtaField extends StatelessWidget {
+  final TextEditingController controller;
   final String hint;
   final IconData icon;
   final TextInputType keyboardType;
+  final TextInputAction textInputAction;
+  final String? Function(String?)? validator;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const _CtaField({
+    required this.controller,
     required this.hint,
     required this.icon,
     this.keyboardType = TextInputType.text,
+    this.textInputAction = TextInputAction.next,
+    this.validator,
+    this.onFieldSubmitted,
   });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
+      controller: controller,
       keyboardType: keyboardType,
+      textInputAction: textInputAction,
+      validator: validator,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      onFieldSubmitted: onFieldSubmitted,
       style: const TextStyle(
         fontSize: 15,
         color: AppColors.textPrimary,
@@ -1001,6 +1221,66 @@ class _CtaField extends StatelessWidget {
             width: 1.5,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Inline success state shown inside the CTA card after a consultation
+/// request is accepted by the server. Designed to feel intentional and
+/// quiet rather than celebratory: monochrome check inside a soft circular
+/// well, short headline, supporting line. No saturated colors, no banner.
+class _CtaSuccessView extends StatelessWidget {
+  const _CtaSuccessView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      // Approximates the visual mass of the form so the AnimatedSize
+      // height delta during the cross-fade stays small.
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.creamSubtle,
+            ),
+            child: const Icon(
+              Icons.check_rounded,
+              size: 28,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            'Заявка принята',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              height: 1.25,
+              letterSpacing: -0.2,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: Text(
+              'Мы свяжемся с вами в ближайшее время.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+                height: 1.5,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

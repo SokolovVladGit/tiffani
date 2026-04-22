@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/injector.dart';
 import '../../../../core/router/product_details_payload.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/navigation_guard.dart';
 import '../../../catalog/presentation/widgets/catalog_card.dart';
 import '../../../catalog/presentation/widgets/catalog_list_skeleton.dart';
 import '../cubit/favorites_cubit.dart';
@@ -81,9 +80,9 @@ class _FavoritesPageState extends State<FavoritesPage> {
                 return CatalogCard(
                   item: item,
                   heroTag: heroTag,
-                  onTap: () => context.push(
-                    RouteNames.catalogDetails,
-                    extra: ProductDetailsPayload(
+                  onTap: () => NavigationGuard.pushCatalogDetailsOnce(
+                    context,
+                    ProductDetailsPayload(
                       item: item,
                       heroTag: heroTag,
                     ),

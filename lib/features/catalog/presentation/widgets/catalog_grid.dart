@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/product_details_payload.dart';
-import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/utils/navigation_guard.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import 'catalog_card.dart';
 
@@ -83,9 +82,9 @@ class _CatalogGridState extends State<CatalogGrid> {
         return CatalogCard(
           item: item,
           heroTag: heroTag,
-          onTap: () => context.push(
-            RouteNames.catalogDetails,
-            extra: ProductDetailsPayload(item: item, heroTag: heroTag),
+          onTap: () => NavigationGuard.pushCatalogDetailsOnce(
+            context,
+            ProductDetailsPayload(item: item, heroTag: heroTag),
           ),
         );
       },
