@@ -18,7 +18,20 @@ export interface TildaOffer {
   oldPrice?: number;
   currencyId?: string;
   categoryId?: string;
+  /**
+   * Convenience accessor for the first picture URL, preserved for
+   * backward compatibility with code that only reads a single image
+   * (e.g. `products.photo`, `product_variants.photo`). Equals
+   * `pictures[0]` when `pictures` is non-empty, otherwise undefined.
+   */
   picture?: string;
+  /**
+   * Full ordered list of `<picture>` URLs for the offer, deduplicated
+   * while preserving source order. Always defined; may be empty when
+   * the offer carries no pictures. Optional in the type to keep
+   * hand-constructed test fixtures backward compatible.
+   */
+  pictures?: string[];
   name?: string;
   vendor?: string;
   description?: string;

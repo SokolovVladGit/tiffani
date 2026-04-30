@@ -6,6 +6,7 @@ import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/navigation_guard.dart';
+import '../../../../core/utils/product_hero_tag.dart';
 import '../../../catalog/presentation/widgets/catalog_card.dart';
 import '../../../catalog/presentation/widgets/catalog_list_skeleton.dart';
 import '../cubit/favorites_cubit.dart';
@@ -42,8 +43,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
       bloc: sl<FavoritesCubit>(),
       listenWhen: (prev, curr) => prev.ids != curr.ids,
       listener: (context, state) {
-        final displayedIds =
-            _itemsCubit.state.items.map((e) => e.id).toSet();
+        final displayedIds = _itemsCubit.state.items.map((e) => e.id).toSet();
         final newIds = state.ids;
         final removed = displayedIds.difference(newIds);
         final added = newIds.difference(displayedIds);
@@ -76,16 +76,14 @@ class _FavoritesPageState extends State<FavoritesPage> {
               itemCount: state.items.length,
               itemBuilder: (context, index) {
                 final item = state.items[index];
-                final heroTag = 'favorites-${item.id}';
+                final heroTag = ProductHeroTag.favorites(item.id);
                 return CatalogCard(
+                  key: ValueKey(heroTag),
                   item: item,
                   heroTag: heroTag,
                   onTap: () => NavigationGuard.pushCatalogDetailsOnce(
                     context,
-                    ProductDetailsPayload(
-                      item: item,
-                      heroTag: heroTag,
-                    ),
+                    ProductDetailsPayload(item: item, heroTag: heroTag),
                   ),
                 );
               },

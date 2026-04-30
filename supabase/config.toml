@@ -3,3 +3,9 @@ verify_jwt = false
 
 [functions.consultation-notify]
 verify_jwt = false
+
+[functions.catalog-refill]
+verify_jwt = true
+
+[functions.catalog-yml-sync-safe]
+verify_jwt = true

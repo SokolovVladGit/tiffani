@@ -41,6 +41,7 @@ class HomeHorizontalItemCard extends StatelessWidget {
                 children: [
                   if (heroTag != null)
                     Hero(
+                      key: ValueKey(heroTag!),
                       tag: heroTag!,
                       child: _ImageBox(imageUrl: item.imageUrl),
                     )
@@ -140,8 +141,7 @@ class _PriceRow extends StatelessWidget {
     final formatted = PriceFormatter.formatRub(price);
     if (formatted.isEmpty) return const SizedBox.shrink();
 
-    final showOld =
-        oldPrice != null && price != null && oldPrice! > price!;
+    final showOld = oldPrice != null && price != null && oldPrice! > price!;
 
     return Row(
       children: [

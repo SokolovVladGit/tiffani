@@ -9,6 +9,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/debounce.dart';
 import '../../../../core/utils/navigation_guard.dart';
+import '../../../../core/utils/product_hero_tag.dart';
 import '../../domain/entities/catalog_filters_entity.dart';
 import '../../domain/usecases/get_all_brands_use_case.dart';
 import '../../domain/usecases/get_available_categories_use_case.dart';
@@ -80,14 +81,16 @@ class _CatalogPageState extends State<CatalogPage> {
       if (widget.initialMark != null) {
         _catalogFilterCubit.setMark(widget.initialMark);
       }
-      _bloc.add(CatalogFiltersApplied(
-        CatalogFiltersEntity(
-          selectedBrand: widget.initialBrand,
-          selectedCategory: widget.initialCategory,
-          selectedMark: widget.initialMark,
-          saleOnly: widget.initialSaleOnly,
+      _bloc.add(
+        CatalogFiltersApplied(
+          CatalogFiltersEntity(
+            selectedBrand: widget.initialBrand,
+            selectedCategory: widget.initialCategory,
+            selectedMark: widget.initialMark,
+            saleOnly: widget.initialSaleOnly,
+          ),
         ),
-      ));
+      );
     } else {
       _catalogFilterCubit = sl<CatalogFilterCubit>();
       _catalogFilterCubit.loadFilterOptions();
@@ -138,9 +141,7 @@ class _CatalogPageState extends State<CatalogPage> {
                 fit: BoxFit.cover,
               ),
             ),
-            const Positioned.fill(
-              child: ColoredBox(color: Color(0x38FFFFFF)),
-            ),
+            const Positioned.fill(child: ColoredBox(color: Color(0x38FFFFFF))),
             SafeArea(
               child: Column(
                 children: [
@@ -254,12 +255,16 @@ class _CatalogScrollBodyState extends State<_CatalogScrollBody> {
 
   void _applyFilters(BuildContext context) {
     final fs = context.read<CatalogFilterCubit>().state;
-    widget.bloc.add(CatalogFiltersApplied(CatalogFiltersEntity(
-      selectedBrand: fs.selectedBrand,
-      selectedCategory: fs.selectedCategory,
-      selectedMark: fs.selectedMark,
-      sortOption: fs.sortOption,
-    )));
+    widget.bloc.add(
+      CatalogFiltersApplied(
+        CatalogFiltersEntity(
+          selectedBrand: fs.selectedBrand,
+          selectedCategory: fs.selectedCategory,
+          selectedMark: fs.selectedMark,
+          sortOption: fs.sortOption,
+        ),
+      ),
+    );
   }
 
   void _onCategoryTap(BuildContext context, String? category) {
@@ -325,63 +330,59 @@ class _CatalogScrollBodyState extends State<_CatalogScrollBody> {
     );
   }
 
-  List<Widget> _buildContentSlivers(
-    BuildContext context,
-    CatalogState state,
-  ) {
+  List<Widget> _buildContentSlivers(BuildContext context, CatalogState state) {
     return switch (state.status) {
       CatalogStatus.initial || CatalogStatus.loading => [
-          SliverList.builder(
-            itemCount: 6,
-            itemBuilder: (_, _) => const _SkeletonCard(),
-          ),
-        ],
+        SliverList.builder(
+          itemCount: 6,
+          itemBuilder: (_, _) => const _SkeletonCard(),
+        ),
+      ],
       CatalogStatus.failure => [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _FailureView(
-              message: state.errorMessage ?? 'Что-то пошло не так',
-            ),
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _FailureView(
+            message: state.errorMessage ?? 'Что-то пошло не так',
           ),
-        ],
+        ),
+      ],
       CatalogStatus.success when state.items.isEmpty => [
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _EmptyView(
-              isSearching: state.isSearching,
-              hasActiveFilters: state.hasActiveFilters,
-              onClearFilters: () {
-                context.read<FilterCubit>().clear();
-                context.read<CatalogFilterCubit>().clearAll();
-                widget.bloc
-                  ..add(const CatalogAttributeFiltersApplied({}))
-                  ..add(
-                      CatalogFiltersApplied(const CatalogFiltersEntity()));
-              },
-            ),
-          ),
-        ],
-      CatalogStatus.success => [
-          SliverList.builder(
-            itemCount:
-                state.items.length + (state.isLoadingMore ? 1 : 0),
-            itemBuilder: (context, index) {
-              if (index >= state.items.length) {
-                return const _BottomLoader();
-              }
-              final item = state.items[index];
-              final heroTag = 'catalog-${item.id}';
-              return CatalogCard(
-                item: item,
-                heroTag: heroTag,
-                onTap: () => NavigationGuard.pushCatalogDetailsOnce(
-                  context,
-                  ProductDetailsPayload(item: item, heroTag: heroTag),
-                ),
-              );
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: _EmptyView(
+            isSearching: state.isSearching,
+            hasActiveFilters: state.hasActiveFilters,
+            onClearFilters: () {
+              context.read<FilterCubit>().clear();
+              context.read<CatalogFilterCubit>().clearAll();
+              widget.bloc
+                ..add(const CatalogAttributeFiltersApplied({}))
+                ..add(CatalogFiltersApplied(const CatalogFiltersEntity()));
             },
           ),
-        ],
+        ),
+      ],
+      CatalogStatus.success => [
+        SliverList.builder(
+          itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= state.items.length) {
+              return const _BottomLoader();
+            }
+            final item = state.items[index];
+            final heroTag = ProductHeroTag.catalog(item.id);
+            return CatalogCard(
+              key: ValueKey(heroTag),
+              item: item,
+              heroTag: heroTag,
+              onTap: () => NavigationGuard.pushCatalogDetailsOnce(
+                context,
+                ProductDetailsPayload(item: item, heroTag: heroTag),
+              ),
+            );
+          },
+        ),
+      ],
     };
   }
 }
@@ -455,7 +456,10 @@ class _ResultCount extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 8,
+      ),
       child: Row(
         children: [
           Container(
@@ -463,10 +467,7 @@ class _ResultCount extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xCCFFFFFF),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: const Color(0x80FFFFFF),
-                width: 1,
-              ),
+              border: Border.all(color: const Color(0x80FFFFFF), width: 1),
             ),
             child: Text(
               _label(totalCount),
@@ -605,8 +606,7 @@ class _FailureView extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               message,
-              style:
-                  TextStyle(fontSize: 14, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),

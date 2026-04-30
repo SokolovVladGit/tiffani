@@ -57,6 +57,7 @@ function parseOffers(raw: unknown[]): TildaOffer[] {
     const id = str(r["@_id"]);
     if (!id) continue;
 
+    const pictures = extractAllPictures(r.picture);
     result.push({
       id,
       groupId: str(r["@_group_id"]) || undefined,
@@ -66,7 +67,8 @@ function parseOffers(raw: unknown[]): TildaOffer[] {
       oldPrice: num(r.oldprice),
       currencyId: str(r.currencyId) || undefined,
       categoryId: str(r.categoryId) || undefined,
-      picture: extractFirstPicture(r.picture),
+      picture: pictures[0],
+      pictures,
       name: str(r.name) || undefined,
       vendor: str(r.vendor) || undefined,
       description: str(r.description) || undefined,
@@ -93,19 +95,34 @@ function parseParams(raw: unknown): TildaParam[] {
   return result;
 }
 
-function extractFirstPicture(raw: unknown): string | undefined {
-  if (!raw) return undefined;
-  if (typeof raw === "string") return raw;
-  if (Array.isArray(raw)) {
-    for (const item of raw) {
-      const s =
-        typeof item === "object" && item !== null
-          ? str((item as Record<string, unknown>)["#text"])
-          : str(item);
-      if (s) return s;
+/**
+ * Extracts every `<picture>` URL from a Tilda YML offer in source
+ * order, deduplicated. Returns `[]` when no usable URL is present.
+ *
+ * Real Tilda exports place multiple `<picture>` tags per offer
+ * (main + gallery). The previous behavior preserved only the first
+ * URL; this helper preserves all of them so downstream upserters
+ * can populate `product_images` with the full gallery.
+ */
+function extractAllPictures(raw: unknown): string[] {
+  if (!raw) return [];
+  const items = Array.isArray(raw) ? raw : [raw];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    let value: string | null = null;
+    if (typeof item === "string" || typeof item === "number") {
+      value = str(item);
+    } else if (item && typeof item === "object") {
+      value = str((item as Record<string, unknown>)["#text"]);
     }
+    if (!value) continue;
+    const trimmed = value.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
   }
-  return undefined;
+  return out;
 }
 
 /**

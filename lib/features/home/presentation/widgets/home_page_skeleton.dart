@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_decorations.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_spacing.dart';
-import 'home_horizontal_item_card.dart';
+import '../home_metrics.dart';
+import 'home_product_card.dart';
 import 'top_brand_card.dart';
 
 /// Skeleton for the below-hero content area during initial load.
 ///
-/// Matches the Home layout: 3 product sections → brands.
+/// Mirrors the canonical Home rhythm: 3 product sections → brands.
 class HomeContentSkeleton extends StatelessWidget {
   const HomeContentSkeleton({super.key});
 
@@ -18,38 +18,28 @@ class HomeContentSkeleton extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeaderBar(width: 80, topPadding: 14),
-        const SizedBox(height: AppSpacing.md),
+        _buildSectionHeaderBar(top: HomeMetrics.firstSectionTop),
         _buildProductStrip(),
-        const SizedBox(height: AppSpacing.sm),
-        _buildSectionHeaderBar(width: 50),
-        const SizedBox(height: AppSpacing.md),
+        _buildSectionHeaderBar(top: HomeMetrics.sectionTop),
         _buildProductStrip(),
-        const SizedBox(height: AppSpacing.sm),
-        _buildSectionHeaderBar(width: 65),
-        const SizedBox(height: AppSpacing.md),
+        _buildSectionHeaderBar(top: HomeMetrics.sectionTop),
         _buildProductStrip(),
-        const SizedBox(height: AppSpacing.sm),
-        _buildSectionHeaderBar(width: 75),
-        const SizedBox(height: AppSpacing.md),
+        _buildSectionHeaderBar(top: HomeMetrics.sectionTop),
         _buildBrandStrip(),
       ],
     );
   }
 
-  Widget _buildSectionHeaderBar({
-    required double width,
-    double topPadding = AppSpacing.xxl,
-  }) {
+  Widget _buildSectionHeaderBar({required double top}) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        topPadding,
-        AppSpacing.lg,
-        0,
+        HomeMetrics.pageEdge,
+        top,
+        HomeMetrics.pageEdge,
+        HomeMetrics.sectionHeaderBottom,
       ),
       child: Container(
-        width: width,
+        width: 96,
         height: 18,
         decoration: AppDecorations.skeleton(),
       ),
@@ -62,9 +52,9 @@ class HomeContentSkeleton extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: HomeMetrics.pageEdge),
         itemCount: 4,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (_, _) => Container(
           width: TopBrandCard.cardWidth,
           decoration: BoxDecoration(
@@ -78,15 +68,15 @@ class HomeContentSkeleton extends StatelessWidget {
 
   Widget _buildProductStrip() {
     return SizedBox(
-      height: 228,
+      height: HomeProductCard.cardHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.symmetric(horizontal: HomeMetrics.pageEdge),
         itemCount: 3,
-        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (_, _) => Container(
-          width: HomeHorizontalItemCard.cardWidth,
+          width: HomeProductCard.cardWidth,
           decoration: BoxDecoration(
             color: AppColors.skeleton,
             borderRadius: BorderRadius.circular(AppRadius.lg),

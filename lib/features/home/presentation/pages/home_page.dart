@@ -11,7 +11,6 @@ import '../../../../core/router/catalog_filter_payload.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/hero_curve_clipper.dart';
@@ -24,6 +23,7 @@ import '../bloc/home_bloc.dart';
 import '../bloc/home_event.dart';
 import '../bloc/home_state.dart';
 import '../cubit/top_brands_cubit.dart';
+import '../home_metrics.dart';
 import '../home_strings.dart';
 import '../widgets/home_page_skeleton.dart';
 import '../widgets/home_section.dart';
@@ -76,9 +76,7 @@ class _HomePageState extends State<HomePage> {
                 fit: BoxFit.cover,
               ),
             ),
-            const Positioned.fill(
-              child: ColoredBox(color: Color(0x38FFFFFF)),
-            ),
+            const Positioned.fill(child: ColoredBox(color: Color(0x38FFFFFF))),
             const _HomeBody(),
           ],
         ),
@@ -109,11 +107,11 @@ class _HomeBody extends StatelessWidget {
             BlocBuilder<HomeBloc, HomeState>(
               builder: (context, state) {
                 final child = switch (state.status) {
-                  HomeStatus.initial || HomeStatus.loading =>
-                    const HomeContentSkeleton(),
+                  HomeStatus.initial ||
+                  HomeStatus.loading => const HomeContentSkeleton(),
                   HomeStatus.failure => _FailureView(
-                      message:
-                          state.errorMessage ?? HomeStrings.genericError),
+                    message: state.errorMessage ?? HomeStrings.genericError,
+                  ),
                   HomeStatus.success => _SuccessContent(state: state),
                 };
                 return AnimatedSwitcher(
@@ -151,10 +149,8 @@ class _HeroCurveContinuationStrip extends StatelessWidget {
         child: const ColoredBox(
           color: Color(0x38FFFFFF),
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 12, 20, 8),
-            child: Center(
-              child: _GiftBenefitRibbon(),
-            ),
+            padding: EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: Center(child: _GiftBenefitRibbon()),
           ),
         ),
       ),
@@ -188,15 +184,14 @@ class _GiftBenefitRibbonState extends State<_GiftBenefitRibbon>
       vsync: this,
       duration: const Duration(milliseconds: 520),
     );
-    _fade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entrance, curve: Curves.easeOut),
-    );
+    _fade = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOut));
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.18),
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic),
-    );
+    ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _entrance.forward();
     });
@@ -233,42 +228,52 @@ class _GiftBenefitRibbonState extends State<_GiftBenefitRibbon>
                 onTap: _onTap,
                 borderRadius: BorderRadius.circular(999),
                 splashColor: AppColors.textPrimary.withValues(alpha: 0.04),
-                highlightColor:
-                    AppColors.textPrimary.withValues(alpha: 0.02),
+                highlightColor: AppColors.textPrimary.withValues(alpha: 0.02),
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(14, 9, 12, 9),
+                  padding: const EdgeInsets.fromLTRB(16, 10, 14, 10),
                   decoration: BoxDecoration(
-                    color: AppColors.surface.withValues(alpha: 0.92),
+                    color: AppColors.surface.withValues(alpha: 0.94),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: AppColors.border.withValues(alpha: 0.55),
+                      color: AppColors.textPrimary.withValues(alpha: 0.08),
                       width: 0.5,
                     ),
-                    boxShadow: AppShadows.cardPremium,
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0F000000),
+                        blurRadius: 22,
+                        spreadRadius: -4,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const _GiftIconMicroMotion(),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 11),
                       Text(
                         'Подарок к каждому заказу',
                         style: TextStyle(
-                          fontSize: 13,
+                          fontSize: 12.5,
                           fontWeight: FontWeight.w500,
                           height: 1.0,
-                          letterSpacing: 0.3,
-                          color: AppColors.textPrimary
-                              .withValues(alpha: 0.86),
+                          letterSpacing: 0.6,
+                          color: AppColors.textPrimary.withValues(alpha: 0.88),
                         ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        width: 1,
+                        height: 12,
+                        color: AppColors.textPrimary.withValues(alpha: 0.10),
                       ),
                       const SizedBox(width: 8),
                       Icon(
                         Icons.chevron_right_rounded,
                         size: 16,
-                        color: AppColors.textSecondary
-                            .withValues(alpha: 0.55),
+                        color: AppColors.textSecondary.withValues(alpha: 0.55),
                       ),
                     ],
                   ),
@@ -516,18 +521,24 @@ class _GiftIconMicroMotionState extends State<_GiftIconMicroMotion>
 
     _sway = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0, end: -0.04)
-            .chain(CurveTween(curve: Curves.easeInOutCubic)),
+        tween: Tween<double>(
+          begin: 0,
+          end: -0.04,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
         weight: 36,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -0.04, end: 0.025)
-            .chain(CurveTween(curve: Curves.easeInOutCubic)),
+        tween: Tween<double>(
+          begin: -0.04,
+          end: 0.025,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
         weight: 38,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.025, end: 0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween<double>(
+          begin: 0.025,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 26,
       ),
     ]).animate(_c);
@@ -535,25 +546,32 @@ class _GiftIconMicroMotionState extends State<_GiftIconMicroMotion>
     _liftY = TweenSequence<double>([
       TweenSequenceItem(tween: ConstantTween<double>(0), weight: 10),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0, end: -1.0)
-            .chain(CurveTween(curve: Curves.easeInOutCubic)),
+        tween: Tween<double>(
+          begin: 0,
+          end: -1.0,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
         weight: 34,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: -1.0, end: 0.35)
-            .chain(CurveTween(curve: Curves.easeInOutCubic)),
+        tween: Tween<double>(
+          begin: -1.0,
+          end: 0.35,
+        ).chain(CurveTween(curve: Curves.easeInOutCubic)),
         weight: 38,
       ),
       TweenSequenceItem(
-        tween: Tween<double>(begin: 0.35, end: 0)
-            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        tween: Tween<double>(
+          begin: 0.35,
+          end: 0,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)),
         weight: 18,
       ),
     ]).animate(_c);
 
-    _iconOpacity = Tween<double>(begin: 0.93, end: 1.0).animate(
-      CurvedAnimation(parent: _c, curve: Curves.easeInOutCubic),
-    );
+    _iconOpacity = Tween<double>(
+      begin: 0.93,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOutCubic));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _c.forward(from: 0);
@@ -607,9 +625,7 @@ class _GiftIconMicroMotionState extends State<_GiftIconMicroMotion>
 // Hero section — full-bleed image with gradient, floating icons, bottom text
 // ---------------------------------------------------------------------------
 
-const _heroIconShadows = [
-  Shadow(color: Color(0x40000000), blurRadius: 10),
-];
+const _heroIconShadows = [Shadow(color: Color(0x40000000), blurRadius: 10)];
 
 class _HeroSection extends StatelessWidget {
   final double height;
@@ -627,21 +643,18 @@ class _HeroSection extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            Image.asset(
-              'assets/images/home/main.jpg',
-              fit: BoxFit.cover,
-            ),
+            Image.asset('assets/images/home/main.jpg', fit: BoxFit.cover),
             DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withValues(alpha: 0.45),
-                    Colors.black.withValues(alpha: 0.0),
-                    Colors.black.withValues(alpha: 0.65),
+                    Colors.black.withValues(alpha: 0.42),
+                    Colors.black.withValues(alpha: 0.05),
+                    Colors.black.withValues(alpha: 0.72),
                   ],
-                  stops: const [0.0, 0.3, 1.0],
+                  stops: const [0.0, 0.42, 1.0],
                 ),
               ),
             ),
@@ -652,8 +665,11 @@ class _HeroSection extends StatelessWidget {
               child: SafeArea(
                 bottom: false,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.sm,
+                    AppSpacing.xs,
+                    AppSpacing.sm,
+                    0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
@@ -685,23 +701,26 @@ class _HeroSection extends StatelessWidget {
             Positioned(
               left: AppSpacing.xl,
               right: AppSpacing.xl,
-              bottom: AppSpacing.xxl,
+              bottom: AppSpacing.xxl + 4,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'TIFFANI',
-                    style: AppTextStyles.hero,
+                  Container(
+                    width: 28,
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.55),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.md),
+                  const Text('TIFFANI', style: AppTextStyles.hero),
+                  const SizedBox(height: 10),
                   Text(
                     HomeStrings.heroSubtitle,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w400,
-                      color: Colors.white.withValues(alpha: 0.75),
-                      letterSpacing: 0.5,
-                      height: 1.4,
+                      color: Colors.white.withValues(alpha: 0.82),
+                      letterSpacing: 0.6,
+                      height: 1.45,
                     ),
                   ),
                 ],
@@ -743,9 +762,7 @@ class _FavoritesButton extends StatelessWidget {
             isLabelVisible: count > 0,
             label: Text('$count'),
             child: Icon(
-              count > 0
-                  ? CupertinoIcons.heart_fill
-                  : CupertinoIcons.heart,
+              count > 0 ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
               color: Colors.white,
               size: 22,
               shadows: _heroIconShadows,
@@ -773,13 +790,9 @@ class _SuccessContent extends StatelessWidget {
       children: [
         HomeSection(
           title: HomeStrings.newSection,
+          sectionKey: 'new',
           items: state.newItems,
-          headerPadding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            14,
-            AppSpacing.lg,
-            AppSpacing.md,
-          ),
+          isFirst: true,
           actionText: HomeStrings.seeAll,
           onAction: () => context.push(
             RouteNames.filteredCatalog,
@@ -791,6 +804,7 @@ class _SuccessContent extends StatelessWidget {
         ),
         HomeSection(
           title: HomeStrings.bestsellersSection,
+          sectionKey: 'hits',
           items: state.hitItems,
           actionText: HomeStrings.seeAll,
           onAction: () => context.push(
@@ -803,6 +817,7 @@ class _SuccessContent extends StatelessWidget {
         ),
         HomeSection(
           title: HomeStrings.saleSection,
+          sectionKey: 'sale',
           items: state.saleItems,
           actionText: HomeStrings.seeAll,
           onAction: () => context.push(
@@ -816,6 +831,7 @@ class _SuccessContent extends StatelessWidget {
         const HomeRecommendationsSection(),
         const TopBrandsSection(),
         const RecentlyViewedSection(),
+        const SizedBox(height: HomeMetrics.contactsTop),
         const HomeContactsSection(),
       ],
     );
@@ -848,7 +864,9 @@ class _FailureView extends StatelessWidget {
             Text(
               message,
               style: const TextStyle(
-                  fontSize: 14, color: AppColors.textSecondary),
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),

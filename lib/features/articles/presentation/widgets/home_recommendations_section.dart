@@ -3,14 +3,22 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/section_header.dart';
+import '../../../home/presentation/home_metrics.dart';
+import '../../../home/presentation/home_strings.dart';
 import '../cubit/home_articles_cubit.dart';
 import '../cubit/home_articles_state.dart';
 import 'recommendation_card.dart';
 
 class HomeRecommendationsSection extends StatelessWidget {
   const HomeRecommendationsSection({super.key});
+
+  static const _headerPadding = EdgeInsets.fromLTRB(
+    HomeMetrics.pageEdge,
+    HomeMetrics.sectionTop,
+    HomeMetrics.pageEdge,
+    HomeMetrics.sectionHeaderBottom,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -19,8 +27,7 @@ class HomeRecommendationsSection extends StatelessWidget {
       builder: (context, state) {
         return switch (state.status) {
           HomeArticlesStatus.initial ||
-          HomeArticlesStatus.error =>
-            const SizedBox.shrink(),
+          HomeArticlesStatus.error => const SizedBox.shrink(),
           HomeArticlesStatus.loading => const _Skeleton(),
           HomeArticlesStatus.loaded when state.articles.isEmpty =>
             const SizedBox.shrink(),
@@ -41,18 +48,21 @@ class _Content extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader(title: 'Рекомендации'),
+        const SectionHeader(
+          title: HomeStrings.recommendationsSection,
+          padding: HomeRecommendationsSection._headerPadding,
+        ),
         SizedBox(
-          height: 210,
+          height: RecommendationCard.cardHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-            itemCount: state.articles.length,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: AppSpacing.md),
-            itemBuilder: (_, index) => RecommendationCard(
-              article: state.articles[index],
+            padding: const EdgeInsets.symmetric(
+              horizontal: HomeMetrics.pageEdge,
             ),
+            itemCount: state.articles.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
+            itemBuilder: (_, index) =>
+                RecommendationCard(article: state.articles[index]),
           ),
         ),
       ],
@@ -69,12 +79,7 @@ class _Skeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xxl,
-            AppSpacing.lg,
-            AppSpacing.md,
-          ),
+          padding: HomeRecommendationsSection._headerPadding,
           child: Container(
             width: 130,
             height: 18,
@@ -85,15 +90,16 @@ class _Skeleton extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 210,
+          height: RecommendationCard.cardHeight,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: HomeMetrics.pageEdge,
+            ),
             itemCount: 3,
-            separatorBuilder: (_, __) =>
-                const SizedBox(width: AppSpacing.md),
-            itemBuilder: (_, __) => Container(
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
+            itemBuilder: (_, _) => Container(
               width: RecommendationCard.cardWidth,
               decoration: BoxDecoration(
                 color: AppColors.skeleton,

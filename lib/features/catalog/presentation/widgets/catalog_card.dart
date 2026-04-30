@@ -22,12 +22,7 @@ class CatalogCard extends StatelessWidget {
   final VoidCallback? onTap;
   final String? heroTag;
 
-  const CatalogCard({
-    super.key,
-    required this.item,
-    this.onTap,
-    this.heroTag,
-  });
+  const CatalogCard({super.key, required this.item, this.onTap, this.heroTag});
 
   static const double _imageSize = 108;
 
@@ -56,6 +51,7 @@ class CatalogCard extends StatelessWidget {
                     children: [
                       if (heroTag != null)
                         Hero(
+                          key: ValueKey(heroTag!),
                           tag: heroTag!,
                           child: _ImageBox(imageUrl: item.imageUrl),
                         )
@@ -150,11 +146,7 @@ class _InfoColumn extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 2),
-        _MetaLine(
-          brand: item.brand,
-          stock: stock,
-          stockColor: stockColor,
-        ),
+        _MetaLine(brand: item.brand, stock: stock, stockColor: stockColor),
         const SizedBox(height: AppSpacing.sm),
         Row(
           children: [
@@ -174,11 +166,7 @@ class _MetaLine extends StatelessWidget {
   final String stock;
   final Color stockColor;
 
-  const _MetaLine({
-    this.brand,
-    required this.stock,
-    required this.stockColor,
-  });
+  const _MetaLine({this.brand, required this.stock, required this.stockColor});
 
   @override
   Widget build(BuildContext context) {
@@ -198,16 +186,10 @@ class _MetaLine extends StatelessWidget {
           ),
           const Text(
             ' · ',
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.textTertiary,
-            ),
+            style: TextStyle(fontSize: 11, color: AppColors.textTertiary),
           ),
         ],
-        Text(
-          stock,
-          style: TextStyle(fontSize: 10, color: stockColor),
-        ),
+        Text(stock, style: TextStyle(fontSize: 10, color: stockColor)),
       ],
     );
   }
@@ -358,10 +340,8 @@ class _AddButtonState extends State<_AddButton>
       behavior: HitTestBehavior.opaque,
       child: AnimatedBuilder(
         animation: _scale,
-        builder: (context, child) => Transform.scale(
-          scale: _scale.value,
-          child: child,
-        ),
+        builder: (context, child) =>
+            Transform.scale(scale: _scale.value, child: child),
         child: Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(

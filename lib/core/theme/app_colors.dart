@@ -73,7 +73,11 @@ class AppColors {
   static const Color navInactive = Color(0xFF999999);
 
   /// Bottom nav active pill background.
-  static const Color navActivePill = Color(0xFFD9D9D9);
+  ///
+  /// Intentionally a near-invisible dark tint (~5.5% black) rather than a
+  /// solid mid-gray fill — it seats the active icon without the "filled
+  /// segmented control" feel.
+  static const Color navActivePill = Color(0x0E000000);
 
   /// Bottom nav container surface (pure white for contrast against scaffold).
   static const Color navSurface = Color(0xFFFFFFFF);
