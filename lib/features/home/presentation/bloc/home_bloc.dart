@@ -12,19 +12,13 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   final GetHomeSaleItemsUseCase _getSaleItems;
   final GetHomeHitItemsUseCase _getHitItems;
 
-  HomeBloc(
-    this._getNewItems,
-    this._getSaleItems,
-    this._getHitItems,
-  ) : super(const HomeState()) {
+  HomeBloc(this._getNewItems, this._getSaleItems, this._getHitItems)
+    : super(const HomeState()) {
     on<HomeStarted>(_onStarted);
     on<HomeRefreshed>(_onRefreshed);
   }
 
-  Future<void> _onStarted(
-    HomeStarted event,
-    Emitter<HomeState> emit,
-  ) async {
+  Future<void> _onStarted(HomeStarted event, Emitter<HomeState> emit) async {
     await _loadSections(emit);
   }
 
@@ -44,18 +38,22 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         _getHitItems(),
       ]);
 
-      emit(state.copyWith(
-        status: HomeStatus.success,
-        newItems: products[0],
-        saleItems: products[1],
-        hitItems: products[2],
-        errorMessage: null,
-      ));
+      emit(
+        state.copyWith(
+          status: HomeStatus.success,
+          newItems: products[0],
+          saleItems: products[1],
+          hitItems: products[2],
+          errorMessage: null,
+        ),
+      );
     } catch (_) {
-      emit(state.copyWith(
-        status: HomeStatus.failure,
-        errorMessage: HomeStrings.loadError,
-      ));
+      emit(
+        state.copyWith(
+          status: HomeStatus.failure,
+          errorMessage: HomeStrings.loadError,
+        ),
+      );
     }
   }
 }

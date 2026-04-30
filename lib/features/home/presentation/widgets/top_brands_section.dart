@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/section_header.dart';
 import '../cubit/top_brands_cubit.dart';
+import '../home_metrics.dart';
 import '../home_strings.dart';
 import 'top_brand_card.dart';
 
@@ -50,19 +50,21 @@ class _Content extends StatelessWidget {
           actionText: HomeStrings.seeAll,
           onAction: () => context.push(RouteNames.brands),
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xxxl,
-            AppSpacing.lg,
-            AppSpacing.md,
+            HomeMetrics.pageEdge,
+            HomeMetrics.sectionTop,
+            HomeMetrics.pageEdge,
+            HomeMetrics.sectionHeaderBottom,
           ),
         ),
         SizedBox(
           height: 108,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: HomeMetrics.pageEdge,
+            ),
             itemCount: brands.length,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (context, index) {
               final brand = brands[index];
               return TopBrandCard(
@@ -89,10 +91,10 @@ class _Skeleton extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xxxl,
-            AppSpacing.lg,
-            AppSpacing.md,
+            HomeMetrics.pageEdge,
+            HomeMetrics.sectionTop,
+            HomeMetrics.pageEdge,
+            HomeMetrics.sectionHeaderBottom,
           ),
           child: Container(
             width: 120,
@@ -108,9 +110,11 @@ class _Skeleton extends StatelessWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: HomeMetrics.pageEdge,
+            ),
             itemCount: 4,
-            separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (_, _) => const SizedBox(width: 14),
             itemBuilder: (_, _) => Container(
               width: TopBrandCard.cardWidth,
               decoration: BoxDecoration(

@@ -4,6 +4,7 @@ import '../../../../core/router/product_details_payload.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/navigation_guard.dart';
+import '../../../../core/utils/product_hero_tag.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import 'catalog_card.dart';
 
@@ -78,8 +79,9 @@ class _CatalogGridState extends State<CatalogGrid> {
           return const _BottomLoader();
         }
         final item = widget.items[index];
-        final heroTag = 'catalog-${item.id}';
+        final heroTag = ProductHeroTag.catalog(item.id);
         return CatalogCard(
+          key: ValueKey(heroTag),
           item: item,
           heroTag: heroTag,
           onTap: () => NavigationGuard.pushCatalogDetailsOnce(

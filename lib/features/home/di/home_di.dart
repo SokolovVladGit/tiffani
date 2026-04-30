@@ -15,10 +15,7 @@ import '../presentation/cubit/top_brands_cubit.dart';
 
 Future<void> initHomeDependencies() async {
   sl.registerLazySingleton<HomeSupabaseDataSource>(
-    () => HomeSupabaseDataSourceImpl(
-      sl<SupabaseClient>(),
-      sl<LoggerService>(),
-    ),
+    () => HomeSupabaseDataSourceImpl(sl<SupabaseClient>(), sl<LoggerService>()),
   );
 
   sl.registerLazySingleton<HomeRepository>(

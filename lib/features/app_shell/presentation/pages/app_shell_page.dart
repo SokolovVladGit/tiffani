@@ -21,7 +21,7 @@ class AppShellPage extends StatelessWidget {
   static const _iconSize = 22.0;
   static const _barHeight = 64.0;
   static const _capsuleRadius = 32.0;
-  static const _pillRadius = 14.0;
+  static const _pillRadius = 12.0;
 
   static const _icons = <IconData>[
     CupertinoIcons.house,
@@ -76,95 +76,101 @@ class AppShellPage extends StatelessWidget {
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                   child: Container(
-              height: _barHeight,
-              decoration: BoxDecoration(
-                color: const Color(0xF0FFFFFF),
-                borderRadius: BorderRadius.circular(_capsuleRadius),
-                border: Border.all(
-                  color: const Color(0x80FFFFFF),
-                  width: 1,
-                ),
-              ),
-              child: BlocSelector<CartCubit, CartState, int>(
-                bloc: sl<CartCubit>(),
-                selector: (state) => state.totalQuantity,
-                builder: (context, cartCount) {
-                  final selected = navigationShell.currentIndex;
-                  return Row(
-                    children: List.generate(4, (i) {
-                      final isBranch = i < _branchCount;
-                      final active = isBranch && i == selected;
-                      final color =
-                          active ? AppColors.textPrimary : AppColors.navInactive;
-                      final iconData =
-                          active ? _activeIcons[i] : _icons[i];
+                    height: _barHeight,
+                    decoration: BoxDecoration(
+                      color: const Color(0xF0FFFFFF),
+                      borderRadius: BorderRadius.circular(_capsuleRadius),
+                      border: Border.all(
+                        color: const Color(0x80FFFFFF),
+                        width: 1,
+                      ),
+                    ),
+                    child: BlocSelector<CartCubit, CartState, int>(
+                      bloc: sl<CartCubit>(),
+                      selector: (state) => state.totalQuantity,
+                      builder: (context, cartCount) {
+                        final selected = navigationShell.currentIndex;
+                        return Row(
+                          children: List.generate(4, (i) {
+                            final isBranch = i < _branchCount;
+                            final active = isBranch && i == selected;
+                            final color = active
+                                ? AppColors.textPrimary
+                                : AppColors.navInactive;
+                            final iconData = active
+                                ? _activeIcons[i]
+                                : _icons[i];
 
-                      Widget icon = Icon(
-                        iconData,
-                        size: _iconSize,
-                        color: color,
-                      );
-                      if (i == 3) {
-                        icon = _CartBadgeIcon(
-                          count: cartCount,
-                          child: icon,
-                        );
-                      }
-
-                      return Expanded(
-                        child: GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () {
-                            if (isBranch) {
-                              navigationShell.goBranch(
-                                i,
-                                initialLocation: i == selected,
+                            Widget icon = Icon(
+                              iconData,
+                              size: _iconSize,
+                              color: color,
+                            );
+                            if (i == 3) {
+                              icon = _CartBadgeIcon(
+                                count: cartCount,
+                                child: icon,
                               );
-                            } else {
-                              context.push(RouteNames.cart);
                             }
-                          },
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: active
-                                      ? AppColors.navActivePill
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(
-                                    _pillRadius,
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 5,
-                                  ),
-                                  child: icon,
+
+                            return Expanded(
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () {
+                                  if (isBranch) {
+                                    navigationShell.goBranch(
+                                      i,
+                                      initialLocation: i == selected,
+                                    );
+                                  } else {
+                                    context.push(RouteNames.cart);
+                                  }
+                                },
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedContainer(
+                                      duration: const Duration(
+                                        milliseconds: 180,
+                                      ),
+                                      curve: Curves.easeOut,
+                                      decoration: BoxDecoration(
+                                        color: active
+                                            ? AppColors.navActivePill
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(
+                                          _pillRadius,
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 14,
+                                        vertical: 6,
+                                      ),
+                                      child: icon,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _labels[i],
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: active
+                                            ? FontWeight.w600
+                                            : FontWeight.w400,
+                                        letterSpacing: active ? -0.05 : 0,
+                                        color: color,
+                                        height: 1.0,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 3),
-                              Text(
-                                _labels[i],
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: active
-                                      ? FontWeight.w600
-                                      : FontWeight.w400,
-                                  color: color,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  );
-                },
-              ),
-            ),
-          ),
+                            );
+                          }),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -198,13 +204,17 @@ class _CartBadgeIconState extends State<_CartBadgeIcon>
     );
     _scaleAnim = TweenSequence<double>([
       TweenSequenceItem(
-        tween: Tween(begin: 1.0, end: 1.15)
-            .chain(CurveTween(curve: Curves.easeOut)),
+        tween: Tween(
+          begin: 1.0,
+          end: 1.15,
+        ).chain(CurveTween(curve: Curves.easeOut)),
         weight: 40,
       ),
       TweenSequenceItem(
-        tween: Tween(begin: 1.15, end: 1.0)
-            .chain(CurveTween(curve: Curves.easeIn)),
+        tween: Tween(
+          begin: 1.15,
+          end: 1.0,
+        ).chain(CurveTween(curve: Curves.easeIn)),
         weight: 60,
       ),
     ]).animate(_pulseCtrl);

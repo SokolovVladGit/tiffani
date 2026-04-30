@@ -38,12 +38,62 @@ const MODIFICATION_PARAMS = new Set([
  *
  * Memory-optimised: variant and image rows are processed in streaming
  * chunks rather than accumulated into full arrays up-front.
+ *
+ * This function performs phases 1–3 (upsert) followed by phase 4
+ * (soft-deactivation of products missing from the input). Deactivation
+ * assumes the input is the AUTHORITATIVE full catalog — never invoke
+ * against a partial slice; use `upsertCatalogSlice` for targeted refills.
  */
 export async function syncCatalog(
   client: SupabaseClient,
   catalog: TildaCatalog,
   _runId: string,
 ): Promise<{ stats: SyncStats; errors: SyncError[] }> {
+  const { stats, errors, seenTildaUids } = await upsertPhases1to3(
+    client,
+    catalog,
+  );
+
+  await deactivateMissingProducts(client, seenTildaUids, errors);
+
+  stats.error_count = errors.length;
+  return { stats, errors };
+}
+
+/**
+ * Additive sibling of `syncCatalog` that performs ONLY phases 1–3
+ * (products + variants + images upsert) without phase 4 deactivation.
+ *
+ * Intended for targeted refill flows that operate on a partial
+ * `TildaCatalog` slice. Absence of a product from the input must NOT
+ * deactivate anything — hence `deactivateMissingProducts` is not called.
+ *
+ * Invariants preserved from the full sync:
+ *   - `onConflict: 'tilda_uid'` on products
+ *   - `onConflict: 'variant_id'` on product_variants
+ *   - `onConflict: 'product_id,url'` on product_images
+ *   - Admin-curated products (`tilda_uid IS NULL`) cannot match the
+ *     `tilda_uid` conflict key and therefore remain untouched.
+ *   - `is_active` is only ever written as `true` (via `buildProductRow`).
+ */
+export async function upsertCatalogSlice(
+  client: SupabaseClient,
+  catalog: TildaCatalog,
+  _runId: string,
+): Promise<{ stats: SyncStats; errors: SyncError[] }> {
+  const { stats, errors } = await upsertPhases1to3(client, catalog);
+  stats.error_count = errors.length;
+  return { stats, errors };
+}
+
+async function upsertPhases1to3(
+  client: SupabaseClient,
+  catalog: TildaCatalog,
+): Promise<{
+  stats: SyncStats;
+  errors: SyncError[];
+  seenTildaUids: Set<string>;
+}> {
   const errors: SyncError[] = [];
   const stats: SyncStats = {
     products_seen: 0,
@@ -118,7 +168,18 @@ export async function syncCatalog(
 
   // --- Phase 3: Stream variant + image upserts in chunks ---
   // Avoids building full 2400-row arrays; only one chunk lives in memory.
+  //
+  // Image handling notes:
+  //   - Tilda YML offers may carry multiple `<picture>` tags. Every URL
+  //     is preserved with a stable per-product position counter so the
+  //     upsert is repeatable.
+  //   - Conflict key is `(product_id, url)` — position is updated
+  //     idempotently on subsequent runs without creating duplicates.
+  //   - Offers that pre-date the multi-image parser change still expose
+  //     a single `picture`; the fallback below treats it as a
+  //     one-element list to maintain backward compatibility.
   const seenImageKeys = new Set<string>();
+  const productPositionCounter = new Map<string, number>();
   const offers = catalog.offers;
 
   for (let i = 0; i < offers.length; i += BODY_BATCH) {
@@ -144,17 +205,20 @@ export async function syncCatalog(
           buildVariantRow(offer, resolvedProductId, categoryLookup),
         );
 
-        if (offer.picture) {
-          const imageKey = `${resolvedProductId}|${offer.picture}`;
-          if (!seenImageKeys.has(imageKey)) {
-            seenImageKeys.add(imageKey);
-            imageBatch.push({
-              product_id: resolvedProductId,
-              url: offer.picture,
-              position: 0,
-            });
-          }
+        const offerPictures = offerPictureList(offer);
+        let pos = productPositionCounter.get(resolvedProductId) ?? 0;
+        for (const url of offerPictures) {
+          const imageKey = `${resolvedProductId}|${url}`;
+          if (seenImageKeys.has(imageKey)) continue;
+          seenImageKeys.add(imageKey);
+          imageBatch.push({
+            product_id: resolvedProductId,
+            url,
+            position: pos,
+          });
+          pos++;
         }
+        productPositionCounter.set(resolvedProductId, pos);
       } catch (e) {
         errors.push({
           stage: "build_variant",
@@ -210,13 +274,21 @@ export async function syncCatalog(
     }
   }
 
-  // --- Phase 4: Deactivate missing products ---
-  await deactivateMissingProducts(client, seenTildaUids, errors);
-
-  stats.error_count = errors.length;
-  return { stats, errors };
+  return { stats, errors, seenTildaUids };
 }
 
+
+/**
+ * Returns the ordered list of picture URLs for an offer, falling
+ * back to the legacy single-picture field when the multi-picture
+ * array is empty or absent. Always returns an array (never null).
+ */
+function offerPictureList(offer: TildaOffer): string[] {
+  if (offer.pictures && offer.pictures.length > 0) {
+    return offer.pictures;
+  }
+  return offer.picture ? [offer.picture] : [];
+}
 
 function groupOffersByProduct(
   offers: TildaOffer[],

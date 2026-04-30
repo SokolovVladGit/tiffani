@@ -4,7 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/widgets/footer_curve_clipper.dart';
+import '../home_metrics.dart';
 import '../home_strings.dart';
 
 const _telegramUrl = 'https://t.me/tiffani_beauty';
@@ -12,192 +12,71 @@ const _instagramUrl = 'https://instagram.com/tiffani_beauty';
 const _privacyUrl = 'https://tiffani.md/privacy';
 const _termsUrl = 'https://tiffani.md/terms';
 
+const _primaryPhone = '+373 779 76 364';
+const _primaryStore = 'Тирасполь, ул. 25 Октября 94';
+const _email = 'tiffani.service@gmail.com';
+
+/// Compact, monochrome contacts teaser.
+///
+/// Light-surface premium block — replaces the previous near-black "wall".
+/// Shows only the essentials: label, primary phone, primary store,
+/// compact social row, legal links, watermark.
 class HomeContactsSection extends StatelessWidget {
   const HomeContactsSection({super.key});
 
-  static const _phones = [
-    '+373 779 76 364',
-    '+373 778 76 364',
-    '+373 778 53 234',
-  ];
-
-  static const _email = 'tiffani.service@gmail.com';
-
-  static const _stores = [
-    'Тирасполь, ул. 25 Октября 94',
-    'Тирасполь, ул. Юности 18/1',
-    'Бендеры, ул. Ленина 15, ТЦ «Пассаж» бутик №14',
-  ];
+  /// Clearance reserved at the bottom so the watermark sits comfortably
+  /// above the floating bottom navigation capsule.
+  ///
+  /// Nav layout: capsule height 64 + bottom offset (`AppSpacing.sm = 8`) =
+  /// 72 from the screen bottom. We add ~32 of breathing space on top of
+  /// that, then `MediaQuery` safe-area inset on top.
+  static const double _navClearance = 104;
 
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Padding(
-      padding: const EdgeInsets.only(top: 40),
-      child: ClipPath(
-        clipper: const FooterCurveClipper(),
-        clipBehavior: Clip.antiAlias,
-        child: Stack(
-          children: [
-            const Positioned.fill(
-              child: ColoredBox(color: AppColors.footerSurface),
-            ),
-            Positioned.fill(
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.08),
-                        Colors.black.withValues(alpha: 0.03),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.25, 0.6],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xxl,
-                    38,
-                    AppSpacing.xxl,
-                    0,
-                  ),
-                  child: Text(
-                    HomeStrings.contactsSection.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.footerTextPrimary,
-                      letterSpacing: 2.5,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                _ContactGroup(
-                  label: HomeStrings.contactsPhones,
-                  children: [
-                    for (final phone in _phones)
-                      _TappableRow(
-                        text: phone,
-                        onTap: () =>
-                            _launch('tel:${phone.replaceAll(' ', '')}'),
-                      ),
-                  ],
-                ),
-                const _GroupDivider(),
-                _ContactGroup(
-                  label: HomeStrings.contactsEmail,
-                  children: [
-                    _TappableRow(
-                      text: _email,
-                      secondary: true,
-                      onTap: () => _launch('mailto:$_email'),
-                    ),
-                  ],
-                ),
-                const _GroupDivider(),
-                _ContactGroup(
-                  label: HomeStrings.contactsStores,
-                  children: [
-                    for (final address in _stores)
-                      _StaticRow(text: address),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xxxl),
-                const _SocialRow(),
-                const SizedBox(height: AppSpacing.xl),
-                const _LegalLinks(),
-                const SizedBox(height: AppSpacing.lg),
-                const Center(
-                  child: Text(
-                    'TIFFANI',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 3,
-                      color: AppColors.footerWatermark,
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  height: AppSpacing.xxxl + AppSpacing.xxl + bottomPadding,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Thin divider between contact groups
-// ---------------------------------------------------------------------------
-
-class _GroupDivider extends StatelessWidget {
-  const _GroupDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      child: Container(
-        height: 0.5,
-        color: AppColors.footerDivider,
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Contact group — editorial label + content rows
-// ---------------------------------------------------------------------------
-
-class _ContactGroup extends StatelessWidget {
-  final String label;
-  final List<Widget> children;
-
-  const _ContactGroup({
-    required this.label,
-    required this.children,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xxl,
-        AppSpacing.xl,
-        AppSpacing.xxl,
-        AppSpacing.xl,
+        HomeMetrics.pageEdge + 4,
+        0,
+        HomeMetrics.pageEdge + 4,
+        0,
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            label.toUpperCase(),
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: AppColors.footerLabel,
-              letterSpacing: 1.2,
+          Container(
+            width: double.infinity,
+            height: 0.5,
+            color: AppColors.textPrimary.withValues(alpha: 0.10),
+          ),
+          const SizedBox(height: AppSpacing.xxl + 2),
+          const _Eyebrow(),
+          const SizedBox(height: AppSpacing.lg + 2),
+          _PrimaryPhone(
+            phone: _primaryPhone,
+            onTap: () => _launch('tel:${_primaryPhone.replaceAll(' ', '')}'),
+          ),
+          const SizedBox(height: AppSpacing.sm + 4),
+          const _StoreLine(text: _primaryStore),
+          const SizedBox(height: AppSpacing.xl + 4),
+          const _SocialRow(),
+          const SizedBox(height: AppSpacing.xl),
+          const _LegalLinks(),
+          const SizedBox(height: AppSpacing.lg + 2),
+          const Center(
+            child: Text(
+              'TIFFANI',
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 3.6,
+                color: Color(0xFFBDBDBD),
+              ),
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
-          for (int i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: AppSpacing.sm),
-            children[i],
-          ],
+          SizedBox(height: _navClearance + bottomPadding),
         ],
       ),
     );
@@ -205,37 +84,71 @@ class _ContactGroup extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Tappable row — phone / email
+// Eyebrow — dotted line + KONTAKTY label
 // ---------------------------------------------------------------------------
 
-class _TappableRow extends StatelessWidget {
-  final String text;
-  final VoidCallback onTap;
-  final bool secondary;
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow();
 
-  const _TappableRow({
-    required this.text,
-    required this.onTap,
-    this.secondary = false,
-  });
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 16,
+          height: 1,
+          color: AppColors.textPrimary.withValues(alpha: 0.36),
+        ),
+        const SizedBox(width: AppSpacing.sm + 2),
+        Text(
+          HomeStrings.contactsSection.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 2.6,
+            height: 1.0,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm + 2),
+        Container(
+          width: 16,
+          height: 1,
+          color: AppColors.textPrimary.withValues(alpha: 0.36),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Primary phone — single tappable, slightly emphasized line
+// ---------------------------------------------------------------------------
+
+class _PrimaryPhone extends StatelessWidget {
+  final String phone;
+  final VoidCallback onTap;
+
+  const _PrimaryPhone({required this.phone, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: double.infinity,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: secondary ? 14 : 15,
-              fontWeight: secondary ? FontWeight.w400 : FontWeight.w500,
-              color: AppColors.footerAction,
-              height: 1.5,
-            ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Text(
+          phone,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+            letterSpacing: 0.4,
+            height: 1.1,
           ),
         ),
       ),
@@ -244,38 +157,41 @@ class _TappableRow extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Static row — addresses (display only)
+// Store line — single primary address
 // ---------------------------------------------------------------------------
 
-class _StaticRow extends StatelessWidget {
+class _StoreLine extends StatelessWidget {
   final String text;
 
-  const _StaticRow({required this.text});
+  const _StoreLine({required this.text});
 
   @override
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        fontSize: 14,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 13,
         fontWeight: FontWeight.w400,
-        color: AppColors.footerTextSecondary,
-        height: 1.65,
+        color: AppColors.textSecondary.withValues(alpha: 0.85),
+        height: 1.5,
+        letterSpacing: 0.2,
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Social icons row
+// Social row — Telegram, email, Instagram
 // ---------------------------------------------------------------------------
 
 class _SocialRow extends StatelessWidget {
   const _SocialRow();
 
-  static const _iconSize = 20.0;
+  static const _iconSize = 17.0;
+
   static final _iconColor = ColorFilter.mode(
-    AppColors.footerIcon,
+    AppColors.textSecondary.withValues(alpha: 0.78),
     BlendMode.srcIn,
   );
 
@@ -293,17 +209,16 @@ class _SocialRow extends StatelessWidget {
             colorFilter: _iconColor,
           ),
         ),
-        const SizedBox(width: AppSpacing.xxl),
+        const SizedBox(width: AppSpacing.lg),
         _SocialIcon(
-          onTap: () =>
-              _launch('mailto:${HomeContactsSection._email}'),
+          onTap: () => _launch('mailto:$_email'),
           child: Icon(
             Icons.alternate_email_rounded,
             size: _iconSize,
-            color: AppColors.footerIcon,
+            color: AppColors.textSecondary.withValues(alpha: 0.78),
           ),
         ),
-        const SizedBox(width: AppSpacing.xxl),
+        const SizedBox(width: AppSpacing.lg),
         _SocialIcon(
           onTap: () => _launch(_instagramUrl),
           child: SvgPicture.asset(
@@ -330,12 +245,12 @@ class _SocialIcon extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           border: Border.all(
-            color: AppColors.footerDivider,
+            color: AppColors.textPrimary.withValues(alpha: 0.10),
             width: 0.5,
           ),
         ),
@@ -353,10 +268,11 @@ class _LegalLinks extends StatelessWidget {
   const _LegalLinks();
 
   static const _style = TextStyle(
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: FontWeight.w400,
-    color: AppColors.footerLabel,
+    color: Color(0xFF9A9A9A),
     height: 1.4,
+    letterSpacing: 0.2,
   );
 
   @override
