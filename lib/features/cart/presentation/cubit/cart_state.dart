@@ -1,4 +1,5 @@
 import '../../domain/entities/cart_item_entity.dart';
+import '../../domain/entities/order_quote_entity.dart';
 
 enum CartStatus { initial, loading, success, failure }
 
@@ -13,6 +14,16 @@ class CartState {
   final bool submissionSuccess;
   final String? lastOrderId;
 
+  // Phase 4: discount-aware quote.
+  final OrderQuoteEntity? quote;
+  final bool isQuoting;
+  final String? quoteErrorMessage;
+
+  /// True when the user has changed an input that affects pricing
+  /// (promo code, fulfillment option) since the last successful quote.
+  /// Display layer can use this to show "Пересчитать" hints.
+  final bool quoteStale;
+
   const CartState({
     this.status = CartStatus.initial,
     this.items = const [],
@@ -23,6 +34,10 @@ class CartState {
     this.isSubmitting = false,
     this.submissionSuccess = false,
     this.lastOrderId,
+    this.quote,
+    this.isQuoting = false,
+    this.quoteErrorMessage,
+    this.quoteStale = false,
   });
 
   bool get isEmpty => items.isEmpty;
@@ -44,6 +59,12 @@ class CartState {
     bool? isSubmitting,
     bool? submissionSuccess,
     String? lastOrderId,
+    OrderQuoteEntity? quote,
+    bool clearQuote = false,
+    bool? isQuoting,
+    String? quoteErrorMessage,
+    bool clearQuoteError = false,
+    bool? quoteStale,
   }) {
     return CartState(
       status: status ?? this.status,
@@ -55,6 +76,11 @@ class CartState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submissionSuccess: submissionSuccess ?? this.submissionSuccess,
       lastOrderId: lastOrderId ?? this.lastOrderId,
+      quote: clearQuote ? null : (quote ?? this.quote),
+      isQuoting: isQuoting ?? this.isQuoting,
+      quoteErrorMessage:
+          clearQuoteError ? null : (quoteErrorMessage ?? this.quoteErrorMessage),
+      quoteStale: quoteStale ?? this.quoteStale,
     );
   }
 }

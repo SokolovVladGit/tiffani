@@ -12,6 +12,8 @@ import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../../account/presentation/cubit/auth_cubit.dart';
 import '../../../account/presentation/cubit/auth_state.dart';
+import '../../config/discount_pricing_config.dart';
+import '../../data/dto/order_quote_dto.dart';
 import '../../domain/entities/fulfillment_option.dart';
 import '../../domain/entities/payment_option.dart';
 import '../../domain/entities/pickup_store.dart';
@@ -41,10 +43,23 @@ class _CheckoutPageState extends State<CheckoutPage> {
   PaymentOption _payment = PaymentOption.values.first;
   bool _consent = false;
 
+  /// Trimmed + lower-cased promo code used in the most recent
+  /// `quote_order_v1` call. Drives the "Промокод изменён" stale hint and
+  /// keeps button copy consistent — `null` means no apply has been triggered
+  /// yet (initial automatic-only quote on open does not count, see
+  /// [_runQuote]).
+  String? _lastQuotedPromo;
+
   @override
   void initState() {
     super.initState();
     _tryPrefill();
+    if (DiscountPricingConfig.useDiscountPricingV1) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _runQuote(silent: true);
+      });
+    }
   }
 
   @override
@@ -80,6 +95,48 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
   }
 
+  /// Builds the form entity from current controller/option state. Used by
+  /// both the quote and the submit paths so they always agree.
+  RequestFormEntity _buildForm() {
+    return RequestFormEntity(
+      name: _nameCtrl.text,
+      phone: _phoneCtrl.text,
+      email: _emailCtrl.text.isEmpty ? null : _emailCtrl.text,
+      promoCode: _promoCtrl.text.isEmpty ? null : _promoCtrl.text,
+      loyaltyCard: _loyaltyCtrl.text.isEmpty ? null : _loyaltyCtrl.text,
+      comment: _commentCtrl.text.isEmpty ? null : _commentCtrl.text,
+      consentGiven: _consent,
+      fulfillment: _fulfillment,
+      pickupStore: _fulfillment.isPickup ? _selectedStore : null,
+      deliveryAddress: _fulfillment.isDelivery
+          ? (_addressCtrl.text.isEmpty ? null : _addressCtrl.text)
+          : null,
+      payment: _payment,
+    );
+  }
+
+  /// Triggers a fresh `quote_order_v1` call using the current form. Safe to
+  /// call before the form passes validation: the quote endpoint only cares
+  /// about items + promo + fulfillment fee.
+  ///
+  /// `silent` skips the keyboard dismiss (used for non-tap triggers like
+  /// fulfillment changes and the implicit on-open quote).
+  void _runQuote({bool silent = false}) {
+    if (!DiscountPricingConfig.useDiscountPricingV1) return;
+    final cubit = context.read<CartCubit>();
+    if (cubit.state.items.isEmpty) return;
+    setState(() => _lastQuotedPromo = _normalizePromo(_promoCtrl.text));
+    cubit.requestQuote(_buildForm());
+    if (!silent) {
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  /// Promo code comparison key. Promo codes are case-insensitive on the
+  /// backend (server uppercases them in `submit_order_v3`), so we normalise
+  /// here too. Empty string represents "no promo".
+  static String _normalizePromo(String raw) => raw.trim().toLowerCase();
+
   void _handleSubmit(CartCubit cubit) {
     if (!_formKey.currentState!.validate()) return;
 
@@ -103,23 +160,38 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
-    cubit.submitOrderRequest(
-      RequestFormEntity(
-        name: _nameCtrl.text,
-        phone: _phoneCtrl.text,
-        email: _emailCtrl.text.isEmpty ? null : _emailCtrl.text,
-        promoCode: _promoCtrl.text.isEmpty ? null : _promoCtrl.text,
-        loyaltyCard: _loyaltyCtrl.text.isEmpty ? null : _loyaltyCtrl.text,
-        comment: _commentCtrl.text.isEmpty ? null : _commentCtrl.text,
-        consentGiven: _consent,
-        fulfillment: _fulfillment,
-        pickupStore: _fulfillment.isPickup ? _selectedStore : null,
-        deliveryAddress: _fulfillment.isDelivery
-            ? (_addressCtrl.text.isEmpty ? null : _addressCtrl.text)
-            : null,
-        payment: _payment,
-      ),
-    );
+    if (DiscountPricingConfig.useDiscountPricingV1) {
+      // Block submit if the user supplied a promo code that the quoter
+      // rejected with a hard error. submit_order_v3 would reject anyway,
+      // but blocking client-side gives an instant message.
+      final quote = cubit.state.quote;
+      final hasPromo = _promoCtrl.text.trim().isNotEmpty;
+      if (hasPromo && quote != null && quote.ok) {
+        const blockingPromoStatuses = {
+          'not_found',
+          'inactive',
+          'expired',
+          'limit_reached',
+          'min_order_not_met',
+          'no_matching_items',
+        };
+        if (blockingPromoStatuses.contains(quote.promoStatus)) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  OrderQuoteDto.humanizePromoStatus(quote.promoStatus) ??
+                      'Промокод не применён',
+                ),
+              ),
+            );
+          return;
+        }
+      }
+    }
+
+    cubit.submitOrderRequest(_buildForm());
   }
 
   @override
@@ -128,9 +200,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
     final topInset = mq.padding.top;
     final bottomInset = mq.padding.bottom;
 
-    return BlocProvider.value(
-      value: sl<CartCubit>(),
-      child: BlocListener<CartCubit, CartState>(
+    // CartCubit is provided by the GoRoute builder above this widget so
+    // both `context` here and the State's own `context` (used in initState
+    // and post-frame callbacks for _runQuote) can resolve it.
+    return BlocListener<CartCubit, CartState>(
         listenWhen: (prev, curr) =>
             prev.submissionSuccess != curr.submissionSuccess ||
             (prev.isSubmitting &&
@@ -172,28 +245,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
                     const SizedBox(height: AppSpacing.xs),
                     _buildContactSection(),
                     const SizedBox(height: AppSpacing.xs),
-                    _buildSectionCard(
-                      title: 'Промокод и карта клиента',
-                      children: [
-                        _buildField(
-                          controller: _promoCtrl,
-                          hint: 'Промокод',
-                          action: TextInputAction.next,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        _buildField(
-                          controller: _loyaltyCtrl,
-                          hint: 'Номер карты клиента',
-                          action: TextInputAction.next,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        _buildCheckoutInfoHint(
-                          'Скидка будет применена менеджером после подтверждения заказа',
-                        ),
-                      ],
-                    ),
+                    _buildPromoAndLoyaltySection(),
                     const SizedBox(height: AppSpacing.xs),
                     _buildFulfillmentSection(),
+                    if (DiscountPricingConfig.useDiscountPricingV1) ...[
+                      const SizedBox(height: AppSpacing.xs),
+                      _buildPriceBreakdownSection(),
+                    ],
                     const SizedBox(height: AppSpacing.xs),
                     _buildSectionCard(
                       title: 'Способ оплаты',
@@ -230,8 +288,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             ],
           ),
         ),
-      ),
-    );
+      );
   }
 
   // ---------------------------------------------------------------------------
@@ -340,8 +397,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
       buildWhen: (prev, curr) =>
           prev.totalItems != curr.totalItems ||
           prev.totalQuantity != curr.totalQuantity ||
-          prev.totalPrice != curr.totalPrice,
+          prev.totalPrice != curr.totalPrice ||
+          prev.quote != curr.quote,
       builder: (context, state) {
+        // Prefer the server-quoted grand total when available; otherwise
+        // fall back to the local subtotal (legacy behavior).
+        final quote = DiscountPricingConfig.useDiscountPricingV1
+            ? state.quote
+            : null;
+        final displayTotal = (quote != null && quote.ok)
+            ? quote.grandTotalAmount
+            : state.totalPrice;
+
         return GestureDetector(
           onTap: () => Navigator.of(context).pop(),
           behavior: HitTestBehavior.opaque,
@@ -378,7 +445,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ),
                 Text(
-                  PriceFormatter.formatRub(state.totalPrice),
+                  PriceFormatter.formatRub(displayTotal),
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -397,6 +464,313 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
         );
       },
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Promo + loyalty section (with "Применить" button under the promo input).
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPromoAndLoyaltySection() {
+    return BlocBuilder<CartCubit, CartState>(
+      buildWhen: (prev, curr) =>
+          prev.quote != curr.quote ||
+          prev.isQuoting != curr.isQuoting ||
+          prev.quoteErrorMessage != curr.quoteErrorMessage ||
+          prev.quoteStale != curr.quoteStale,
+      builder: (context, state) {
+        final stale = _stalePromoHint();
+        final statusLine = stale == null ? _promoStatusLine(state) : null;
+        return _buildSectionCard(
+          title: 'Промокод и карта клиента',
+          children: [
+            _buildField(
+              controller: _promoCtrl,
+              hint: 'Промокод',
+              action: TextInputAction.done,
+              onChanged: _onPromoChanged,
+            ),
+            if (DiscountPricingConfig.useDiscountPricingV1) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _buildPromoActionRow(state),
+              if (stale != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _buildPromoNeutralHint(stale),
+              ] else if (statusLine != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                _buildPromoStatusLine(statusLine, state.quote?.promoStatus),
+              ],
+            ],
+            const SizedBox(height: AppSpacing.md),
+            _buildField(
+              controller: _loyaltyCtrl,
+              hint: 'Номер карты клиента',
+              action: TextInputAction.next,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Handles promo input edits without running a quote on every keystroke.
+  ///
+  /// Beyond marking the existing quote stale, we silently re-quote on the
+  /// transition "had a previously applied promo → user cleared the field"
+  /// so the breakdown doesn't keep showing a discount the user has already
+  /// removed. This is a one-shot trigger, not per-keystroke.
+  void _onPromoChanged(String value) {
+    final cubit = context.read<CartCubit>();
+    cubit.markQuoteStale();
+
+    final trimmed = value.trim();
+    final hadAppliedPromo =
+        (_lastQuotedPromo != null && _lastQuotedPromo!.isNotEmpty);
+    if (trimmed.isEmpty && hadAppliedPromo) {
+      // Re-quote silently with empty promo to drop the previous discount.
+      _runQuote(silent: true);
+      return;
+    }
+    setState(() {});
+  }
+
+  Widget _buildPromoActionRow(CartState state) {
+    final isBusy = state.isQuoting;
+    final hasInput = _promoCtrl.text.trim().isNotEmpty;
+    final enabled = !isBusy && hasInput;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Opacity(
+            opacity: enabled || isBusy ? 1.0 : 0.45,
+            child: GestureDetector(
+              onTap: enabled ? () => _runQuote() : null,
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                  vertical: AppSpacing.sm + 2,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceDim,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: AppColors.seed.withValues(alpha: 0.4),
+                    width: 0.5,
+                  ),
+                ),
+                child: isBusy
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        'Применить',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Returns the stale-promo hint when the input has diverged from the most
+  /// recently quoted code. Empty input or "matches last quote" returns null.
+  String? _stalePromoHint() {
+    final current = _normalizePromo(_promoCtrl.text);
+    if (current.isEmpty) return null;
+    final last = _lastQuotedPromo;
+    if (last == null) return null;
+    if (current == last) return null;
+    return 'Промокод изменён — нажмите «Применить»';
+  }
+
+  String? _promoStatusLine(CartState state) {
+    final raw = _promoCtrl.text.trim();
+    if (raw.isEmpty) return null;
+    if (state.quoteErrorMessage != null) return state.quoteErrorMessage;
+    final quote = state.quote;
+    if (quote == null) return null;
+    if (!quote.ok) {
+      return quote.errors.isEmpty
+          ? null
+          : OrderQuoteDto.localizeErrorCode(
+              quote.errors.first.code,
+              backendMessage: quote.errors.first.message,
+            );
+    }
+    return OrderQuoteDto.humanizePromoStatus(
+      quote.promoStatus,
+      promoMessage: quote.promoMessage,
+    );
+  }
+
+  Widget _buildPromoStatusLine(String text, String? status) {
+    Color color;
+    switch (status) {
+      case 'applied':
+        color = AppColors.seed;
+        break;
+      case 'not_best_discount':
+        color = AppColors.textSecondary;
+        break;
+      default:
+        color = AppColors.textTertiary;
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.4,
+          color: color,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPromoNeutralHint(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 12,
+          height: 1.4,
+          color: AppColors.textTertiary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Price breakdown card — visible only with the discount pricing flag on.
+  // ---------------------------------------------------------------------------
+
+  Widget _buildPriceBreakdownSection() {
+    return BlocBuilder<CartCubit, CartState>(
+      buildWhen: (prev, curr) =>
+          prev.quote != curr.quote ||
+          prev.isQuoting != curr.isQuoting ||
+          prev.totalPrice != curr.totalPrice ||
+          prev.quoteStale != curr.quoteStale ||
+          prev.quoteErrorMessage != curr.quoteErrorMessage,
+      builder: (context, state) {
+        final quote = state.quote;
+        final hasQuote = quote != null && quote.ok;
+
+        // Prefer server numbers; degrade to local subtotal + selected
+        // fulfillment fee when the quote isn't available yet.
+        final subtotal = hasQuote ? quote.subtotalAmount : state.totalPrice;
+        final discount = hasQuote ? quote.discountAmount : 0.0;
+        final fee = hasQuote ? quote.fulfillmentFee : _fulfillment.fee;
+        final grand = hasQuote
+            ? quote.grandTotalAmount
+            : (subtotal - discount + fee);
+
+        return _buildSectionCard(
+          title: 'Сумма к оплате',
+          children: [
+            _buildBreakdownRow('Товары', PriceFormatter.formatRub(subtotal)),
+            if (discount > 0) ...[
+              const SizedBox(height: AppSpacing.xs),
+              _buildBreakdownRow(
+                'Скидка',
+                '-${PriceFormatter.formatRub(discount)}',
+                valueColor: AppColors.seed,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.xs),
+            _buildBreakdownRow('Доставка', PriceFormatter.formatRub(fee)),
+            if (hasQuote && quote.appliedDiscountLabels.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              for (final label in quote.appliedDiscountLabels)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+            ],
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              child: Divider(height: 1),
+            ),
+            _buildBreakdownRow(
+              'Итого к оплате',
+              PriceFormatter.formatRub(grand),
+              bold: true,
+            ),
+            if (state.quoteStale && hasQuote) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _buildCheckoutInfoHint(
+                'Промокод изменён — нажмите «Применить», чтобы пересчитать.',
+              ),
+            ],
+            if (!hasQuote && state.quoteErrorMessage != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _buildCheckoutInfoHint(state.quoteErrorMessage!),
+            ],
+            if (state.isQuoting) ...[
+              const SizedBox(height: AppSpacing.sm),
+              const Center(
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildBreakdownRow(
+    String label,
+    String value, {
+    bool bold = false,
+    Color? valueColor,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: bold ? 15 : 13,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w400,
+            color: bold ? AppColors.textPrimary : AppColors.textSecondary,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: bold ? 17 : 13,
+            fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+            color: valueColor ??
+                (bold ? AppColors.textPrimary : AppColors.textSecondary),
+          ),
+        ),
+      ],
     );
   }
 
@@ -473,10 +847,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
             label: o.label,
             subtitle: o.subtitle,
             selected: _fulfillment == o,
-            onTap: () => setState(() {
-              _fulfillment = o;
-              if (o.isDelivery) _selectedStore = null;
-            }),
+            onTap: () {
+              if (_fulfillment == o) return;
+              setState(() {
+                _fulfillment = o;
+                if (o.isDelivery) _selectedStore = null;
+              });
+              if (DiscountPricingConfig.useDiscountPricingV1) {
+                _runQuote(silent: true);
+              }
+            },
           ),
         ),
         if (_fulfillment.isPickup) ...[
@@ -634,6 +1014,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     TextInputAction action = TextInputAction.next,
     int maxLines = 1,
     String? Function(String?)? validator,
+    void Function(String)? onChanged,
   }) {
     return TextFormField(
       controller: controller,
@@ -642,6 +1023,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       textInputAction: action,
       maxLines: maxLines,
       validator: validator,
+      onChanged: onChanged,
     );
   }
 

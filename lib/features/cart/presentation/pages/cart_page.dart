@@ -31,9 +31,9 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(
-      value: sl<CartCubit>(),
-      child: Scaffold(
+    // CartCubit is provided by the GoRoute builder above this widget so
+    // both this build context and the State's own context can resolve it.
+    return Scaffold(
         backgroundColor: Colors.transparent,
         extendBodyBehindAppBar: true,
         appBar: AppBar(
@@ -94,8 +94,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ],
         ),
-      ),
-    );
+      );
   }
 }
 

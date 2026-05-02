@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../../core/services/logger_service.dart';
+import '../../config/discount_pricing_config.dart';
 import '../dto/request_item_payload_dto.dart';
 import '../dto/request_submission_payload_dto.dart';
 import 'cart_remote_data_source.dart';
@@ -12,29 +13,63 @@ class CartRemoteDataSourceImpl implements CartRemoteDataSource {
   const CartRemoteDataSourceImpl(this._client, this._logger);
 
   @override
-  Future<Map<String, dynamic>> submitOrderRequest({
+  Future<Map<String, dynamic>> quoteOrder({
     required RequestSubmissionPayloadDto customer,
     required List<RequestItemPayloadDto> items,
   }) async {
-    _logger.d('submitOrderRequest: ${items.length} items');
-    if (items.isEmpty) {
-      throw Exception('Cannot submit an empty order request');
-    }
+    _logger.d(
+      'quoteOrder: ${items.length} items via ${DiscountPricingConfig.quoteOrderRpcName}',
+    );
 
     final response = await _client.rpc(
-      'submit_order_v2',
+      DiscountPricingConfig.quoteOrderRpcName,
       params: {
         'p_customer': customer.toMap(),
         'p_items': items.map((i) => i.toMap()).toList(),
       },
     );
 
-    final result = response as Map<String, dynamic>;
-    final orderId = result['order_id'] as String?;
-    _logger.d('submitOrderRequest: created order $orderId');
+    if (response is! Map) {
+      throw FormatException(
+        'quoteOrder returned non-map response: $response',
+      );
+    }
+    return response.cast<String, dynamic>();
+  }
 
+  @override
+  Future<Map<String, dynamic>> submitOrderRequest({
+    required RequestSubmissionPayloadDto customer,
+    required List<RequestItemPayloadDto> items,
+  }) async {
+    final rpc = DiscountPricingConfig.submitOrderRpcName;
+    _logger.d('submitOrderRequest: ${items.length} items via $rpc');
+
+    if (items.isEmpty) {
+      throw Exception('Cannot submit an empty order request');
+    }
+
+    final response = await _client.rpc(
+      rpc,
+      params: {
+        'p_customer': customer.toMap(),
+        'p_items': items.map((i) => i.toMap()).toList(),
+      },
+    );
+
+    if (response is! Map) {
+      throw FormatException(
+        '$rpc returned non-map response: $response',
+      );
+    }
+    final result = response.cast<String, dynamic>();
+
+    final orderId = result['order_id'] as String?;
     if (orderId != null) {
+      _logger.d('submitOrderRequest: created order $orderId');
       _notifyOrder(orderId);
+    } else {
+      _logger.d('submitOrderRequest: no order_id (likely ok=false response)');
     }
 
     return result;
