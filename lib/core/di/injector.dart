@@ -1,6 +1,7 @@
 import 'package:get_it/get_it.dart';
 
 import '../../features/account/di/account_di.dart';
+import '../../features/admin/di/admin_di.dart';
 import '../../features/articles/di/articles_di.dart';
 import '../../features/cart/di/cart_di.dart';
 import '../../features/catalog/di/catalog_di.dart';
@@ -16,6 +17,7 @@ final sl = GetIt.instance;
 Future<void> setupDependencies() async {
   await initCoreDependencies();
   await initAccountDependencies();
+  await initAdminDependencies();
   await initCatalogDependencies();
   await initCartDependencies();
   await initHomeDependencies();

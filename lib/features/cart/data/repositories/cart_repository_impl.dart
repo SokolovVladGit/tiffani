@@ -1,13 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../config/discount_pricing_config.dart';
 import '../../domain/entities/cart_item_entity.dart';
 import '../../domain/entities/cart_summary_entity.dart';
+import '../../domain/entities/order_quote_entity.dart';
 import '../../domain/entities/order_result_entity.dart';
 import '../../domain/entities/request_form_entity.dart';
+import '../../domain/exceptions/order_submission_exception.dart';
 import '../../domain/repositories/cart_repository.dart';
 import '../datasources/cart_local_data_source.dart';
 import '../datasources/cart_remote_data_source.dart';
 import '../dto/cart_item_dto.dart';
+import '../dto/order_quote_dto.dart';
 import '../dto/request_item_payload_dto.dart';
 import '../dto/request_submission_payload_dto.dart';
 
@@ -115,27 +119,92 @@ class CartRepositoryImpl implements CartRepository {
   }
 
   @override
+  Future<OrderQuoteEntity> quoteOrder({
+    required RequestFormEntity form,
+    required List<CartItemEntity> items,
+  }) async {
+    if (items.isEmpty) {
+      return const OrderQuoteEntity(
+        ok: false,
+        errors: [
+          OrderQuoteErrorEntity(
+            code: 'empty_items',
+            message: 'Корзина пуста',
+          ),
+        ],
+      );
+    }
+
+    final customer = _buildCustomerPayload(form, requireFulfillmentValid: false);
+    final itemPayloads = items
+        .map((i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity))
+        .toList();
+
+    final raw = await _remoteDataSource.quoteOrder(
+      customer: customer,
+      items: itemPayloads,
+    );
+    return OrderQuoteDto.parseQuote(raw);
+  }
+
+  @override
   Future<OrderResultEntity> submitOrderRequest({
     required RequestFormEntity form,
     required List<CartItemEntity> items,
   }) async {
     if (form.name.trim().isEmpty) {
-      throw Exception('Name is required');
+      throw const OrderSubmissionException(
+        code: 'missing_name',
+        message: 'Укажите имя',
+      );
     }
     if (form.phone.trim().isEmpty) {
-      throw Exception('Phone is required');
+      throw const OrderSubmissionException(
+        code: 'missing_phone',
+        message: 'Укажите телефон',
+      );
     }
     if (items.isEmpty) {
-      throw Exception('Cart is empty');
+      throw const OrderSubmissionException(
+        code: 'empty_items',
+        message: 'Корзина пуста',
+      );
     }
 
+    final customer = _buildCustomerPayload(form, requireFulfillmentValid: true);
+    final itemPayloads = items
+        .map((i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity))
+        .toList();
+
+    final raw = await _remoteDataSource.submitOrderRequest(
+      customer: customer,
+      items: itemPayloads,
+    );
+
+    // submit_order_v3 returns ok=false on user-correctable failures; map to
+    // an OrderSubmissionException with a Russian message. submit_order_v2
+    // does not include `ok`, so missing key === assume v2 success.
+    final okField = raw['ok'];
+    if (okField is bool && !okField) {
+      throw _mapErrorResponse(raw);
+    }
+
+    return OrderQuoteDto.parseOrderResult(raw);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  RequestSubmissionPayloadDto _buildCustomerPayload(
+    RequestFormEntity form, {
+    required bool requireFulfillmentValid,
+  }) {
     final f = form.fulfillment;
+    final legacyAddress =
+        f.isPickup ? null : _nullIfEmpty(form.deliveryAddress);
 
-    final legacyAddress = f.isPickup
-        ? null
-        : _nullIfEmpty(form.deliveryAddress);
-
-    final customer = RequestSubmissionPayloadDto(
+    return RequestSubmissionPayloadDto(
       name: form.name.trim(),
       phone: form.phone.trim(),
       email: _nullIfEmpty(form.email),
@@ -154,24 +223,36 @@ class CartRepositoryImpl implements CartRepository {
       deliveryZoneCode: f.isDelivery ? f.zoneCode : null,
       paymentMethodCode: form.payment.code,
     );
+  }
 
-    final itemPayloads = items
-        .map((i) => RequestItemPayloadDto(
-              variantId: i.id,
-              quantity: i.quantity,
-            ))
-        .toList();
-
-    final result = await _remoteDataSource.submitOrderRequest(
-      customer: customer,
-      items: itemPayloads,
+  OrderSubmissionException _mapErrorResponse(Map<String, dynamic> raw) {
+    final errors = OrderQuoteDto.parseErrors(raw['errors']);
+    if (errors.isEmpty) {
+      return const OrderSubmissionException(
+        code: 'unknown_error',
+        message: 'Не удалось оформить заказ. Попробуйте ещё раз.',
+      );
+    }
+    final first = errors.first;
+    final mapped = OrderQuoteDto.localizeErrorCode(
+      first.code,
+      backendMessage: first.message,
     );
-
-    return OrderResultEntity(
-      orderId: result['order_id'] as String,
-      totalItems: (result['total_items'] as num).toInt(),
-      totalQuantity: (result['total_quantity'] as num).toInt(),
-      totalPrice: (result['total_price'] as num).toDouble(),
+    final requote = first.code == 'quote_changed_or_discount_unavailable';
+    String? campaignId;
+    if (raw['errors'] is List && (raw['errors'] as List).isNotEmpty) {
+      final firstRaw = (raw['errors'] as List).first;
+      if (firstRaw is Map && firstRaw['campaign_id'] is String) {
+        campaignId = firstRaw['campaign_id'] as String;
+      }
+    }
+    // _; reserved for future use of pricing version in error metadata.
+    final _ = DiscountPricingConfig.useDiscountPricingV1;
+    return OrderSubmissionException(
+      code: first.code,
+      message: mapped,
+      requiresRequote: requote,
+      campaignId: campaignId,
     );
   }
 

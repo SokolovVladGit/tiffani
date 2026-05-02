@@ -14,6 +14,7 @@ import '../domain/usecases/clear_cart_use_case.dart';
 import '../domain/usecases/get_cart_item_count_use_case.dart';
 import '../domain/usecases/get_cart_items_use_case.dart';
 import '../domain/usecases/get_cart_summary_use_case.dart';
+import '../domain/usecases/quote_order_use_case.dart';
 import '../domain/usecases/remove_from_cart_use_case.dart';
 import '../domain/usecases/submit_order_request_use_case.dart';
 import '../domain/usecases/update_cart_item_quantity_use_case.dart';
@@ -44,6 +45,7 @@ Future<void> initCartDependencies() async {
   sl.registerLazySingleton(() => GetCartSummaryUseCase(sl()));
   sl.registerLazySingleton(() => GetCartItemCountUseCase(sl()));
   sl.registerLazySingleton(() => SubmitOrderRequestUseCase(sl()));
+  sl.registerLazySingleton(() => QuoteOrderUseCase(sl()));
 
   sl.registerLazySingleton(
     () => CartCubit(
@@ -54,6 +56,7 @@ Future<void> initCartDependencies() async {
       sl<ClearCartUseCase>(),
       sl<GetCartSummaryUseCase>(),
       sl<SubmitOrderRequestUseCase>(),
+      sl<QuoteOrderUseCase>(),
     ),
   );
 }

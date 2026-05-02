@@ -11,6 +11,8 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../../../admin/domain/repositories/admin_access_repository.dart';
+import '../../../admin/presentation/pages/admin_panel_page.dart';
 import '../../domain/entities/order_summary_entity.dart';
 import '../../domain/entities/profile_entity.dart';
 import '../../domain/repositories/account_repository.dart';
@@ -82,12 +84,24 @@ class _AccountShell extends StatefulWidget {
 class _AccountShellState extends State<_AccountShell> {
   late _Section _section;
 
+  /// `null` while admin status is being checked. Avoids flicker between
+  /// customer UI and admin panel by deferring the first render until the
+  /// `is_admin()` RPC resolves (or fails).
+  bool? _isAdmin;
+
   @override
   void initState() {
     super.initState();
     _section =
         widget.showOrderHistory ? _Section.orderHistory : _Section.main;
     sl<AuthCubit>().refreshProfile();
+    _resolveAdminStatus();
+  }
+
+  Future<void> _resolveAdminStatus() async {
+    final result = await sl<AdminAccessRepository>().isAdmin();
+    if (!mounted) return;
+    setState(() => _isAdmin = result);
   }
 
   void _openOrders() => setState(() => _section = _Section.orderHistory);
@@ -101,10 +115,37 @@ class _AccountShellState extends State<_AccountShell> {
     }
   }
 
-  String get _title => switch (_section) {
-        _Section.main => 'Личный кабинет',
-        _Section.orderHistory => 'История заказов',
-      };
+  String get _title {
+    if (_isAdmin == true) return 'Админ-панель';
+    return switch (_section) {
+      _Section.main => 'Личный кабинет',
+      _Section.orderHistory => 'История заказов',
+    };
+  }
+
+  Widget _buildBody() {
+    if (_isAdmin == null) {
+      return const Center(
+        key: ValueKey('admin-check-loading'),
+        child: CircularProgressIndicator.adaptive(),
+      );
+    }
+    if (_isAdmin == true) {
+      return _AdminAccountContent(
+        key: const ValueKey('admin-shell'),
+        state: widget.state,
+      );
+    }
+    return _section == _Section.main
+        ? _AccountMainContent(
+            key: const ValueKey(_Section.main),
+            state: widget.state,
+            onOpenOrders: _openOrders,
+          )
+        : _OrderHistoryContent(
+            key: const ValueKey(_Section.orderHistory),
+          );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -147,10 +188,8 @@ class _AccountShellState extends State<_AccountShell> {
               switchInCurve: Curves.easeOut,
               switchOutCurve: Curves.easeIn,
               transitionBuilder: (child, animation) {
-                final isIncoming =
-                    child.key == ValueKey(_section);
                 final offset = Tween<Offset>(
-                  begin: Offset(isIncoming ? 0.15 : -0.15, 0),
+                  begin: const Offset(0.05, 0),
                   end: Offset.zero,
                 ).animate(animation);
                 return FadeTransition(
@@ -161,15 +200,7 @@ class _AccountShellState extends State<_AccountShell> {
                   ),
                 );
               },
-              child: _section == _Section.main
-                  ? _AccountMainContent(
-                      key: const ValueKey(_Section.main),
-                      state: widget.state,
-                      onOpenOrders: _openOrders,
-                    )
-                  : _OrderHistoryContent(
-                      key: const ValueKey(_Section.orderHistory),
-                    ),
+              child: _buildBody(),
             ),
           ],
         ),
@@ -923,4 +954,104 @@ class _BadgeStyle {
   final Color foreground;
   final bool outlined;
   const _BadgeStyle(this.background, this.foreground, {this.outlined = false});
+}
+
+// =============================================================================
+// Admin account content — embeds the discount management panel
+// =============================================================================
+
+class _AdminAccountContent extends StatelessWidget {
+  final AuthCubitState state;
+
+  const _AdminAccountContent({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        0,
+        topPad + AppSpacing.sm,
+        0,
+        0,
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.sm,
+            ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.md,
+              ),
+              decoration: accountCardDecoration(),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.textPrimary,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.shield_outlined,
+                      size: 18,
+                      color: AppColors.surface,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Администратор',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.6,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          state.email ?? '—',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      sl<AuthCubit>().signOut();
+                      if (context.mounted) context.go(RouteNames.home);
+                    },
+                    child: const Text(
+                      'Выйти',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Expanded(child: AdminPanelPage()),
+        ],
+      ),
+    );
+  }
 }

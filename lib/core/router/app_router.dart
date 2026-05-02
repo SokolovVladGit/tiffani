@@ -1,8 +1,10 @@
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/account/presentation/pages/account_page.dart';
 import '../../features/account/presentation/pages/auth_shell_page.dart';
 import '../../features/app_shell/presentation/pages/app_shell_page.dart';
+import '../../features/cart/presentation/cubit/cart_cubit.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
 import '../../features/cart/presentation/pages/checkout_page.dart';
 import '../../features/cart/presentation/pages/request_success_page.dart';
@@ -15,6 +17,7 @@ import '../../features/glossary/presentation/pages/glossary_about_page.dart';
 import '../../features/glossary/presentation/pages/glossary_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
 import '../../features/info/presentation/pages/info_page.dart';
+import '../di/injector.dart';
 import 'catalog_filter_payload.dart';
 import 'product_details_payload.dart';
 import 'route_names.dart';
@@ -57,7 +60,15 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.cart,
-        builder: (context, state) => const CartPage(),
+        // Provide CartCubit ABOVE the page's State element so anything
+        // using the State's own context (initState, postFrameCallback,
+        // event handlers calling state.context.read<CartCubit>()) can
+        // resolve the cubit. CartCubit is a registered singleton, so
+        // Cart and Checkout share the exact same instance.
+        builder: (context, state) => BlocProvider.value(
+          value: sl<CartCubit>(),
+          child: const CartPage(),
+        ),
       ),
       GoRoute(
         path: RouteNames.glossary,
@@ -120,7 +131,14 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.checkout,
-        builder: (context, state) => const CheckoutPage(),
+        // See note on the Cart route above. CheckoutPage's State uses
+        // its own `context` from initState's postFrameCallback to call
+        // CartCubit.requestQuote, so the provider must sit ABOVE the
+        // StatefulWidget element (not inside its build method).
+        builder: (context, state) => BlocProvider.value(
+          value: sl<CartCubit>(),
+          child: const CheckoutPage(),
+        ),
       ),
       GoRoute(
         path: RouteNames.requestSuccess,
