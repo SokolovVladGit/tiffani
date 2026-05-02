@@ -7,8 +7,12 @@ import '../data/datasources/cart_local_data_source.dart';
 import '../data/datasources/cart_local_data_source_impl.dart';
 import '../data/datasources/cart_remote_data_source.dart';
 import '../data/datasources/cart_remote_data_source_impl.dart';
+import '../data/datasources/checkout_draft_local_data_source.dart';
+import '../data/datasources/checkout_draft_local_data_source_impl.dart';
 import '../data/repositories/cart_repository_impl.dart';
+import '../data/repositories/checkout_draft_repository_impl.dart';
 import '../domain/repositories/cart_repository.dart';
+import '../domain/repositories/checkout_draft_repository.dart';
 import '../domain/usecases/add_to_cart_use_case.dart';
 import '../domain/usecases/clear_cart_use_case.dart';
 import '../domain/usecases/get_cart_item_count_use_case.dart';
@@ -23,6 +27,14 @@ import '../presentation/cubit/cart_cubit.dart';
 Future<void> initCartDependencies() async {
   sl.registerLazySingleton<CartLocalDataSource>(
     () => CartLocalDataSourceImpl(sl<SharedPreferences>()),
+  );
+
+  sl.registerLazySingleton<CheckoutDraftLocalDataSource>(
+    () => CheckoutDraftLocalDataSourceImpl(sl<SharedPreferences>()),
+  );
+
+  sl.registerLazySingleton<CheckoutDraftRepository>(
+    () => CheckoutDraftRepositoryImpl(sl<CheckoutDraftLocalDataSource>()),
   );
 
   sl.registerLazySingleton<CartRemoteDataSource>(

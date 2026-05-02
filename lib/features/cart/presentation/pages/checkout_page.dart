@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -14,10 +16,12 @@ import '../../../account/presentation/cubit/auth_cubit.dart';
 import '../../../account/presentation/cubit/auth_state.dart';
 import '../../config/discount_pricing_config.dart';
 import '../../data/dto/order_quote_dto.dart';
+import '../../domain/entities/checkout_draft_entity.dart';
 import '../../domain/entities/fulfillment_option.dart';
 import '../../domain/entities/payment_option.dart';
 import '../../domain/entities/pickup_store.dart';
 import '../../domain/entities/request_form_entity.dart';
+import '../../domain/repositories/checkout_draft_repository.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 
@@ -35,6 +39,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   final _emailCtrl = TextEditingController();
   final _promoCtrl = TextEditingController();
   final _loyaltyCtrl = TextEditingController();
+  final _loyaltyFocus = FocusNode();
   final _addressCtrl = TextEditingController();
   final _commentCtrl = TextEditingController();
 
@@ -54,6 +59,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void initState() {
     super.initState();
     _tryPrefill();
+    _loyaltyFocus.addListener(_onLoyaltyFocusChanged);
+    // Local draft fills in any field left blank by auth/profile prefill.
+    // Fires-and-forgets; auth prefill always wins where it had data.
+    _loadCheckoutDraft();
     if (DiscountPricingConfig.useDiscountPricingV1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -64,6 +73,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   @override
   void dispose() {
+    _loyaltyFocus.removeListener(_onLoyaltyFocusChanged);
+    _loyaltyFocus.dispose();
     _nameCtrl.dispose();
     _phoneCtrl.dispose();
     _emailCtrl.dispose();
@@ -72,6 +83,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
     _addressCtrl.dispose();
     _commentCtrl.dispose();
     super.dispose();
+  }
+
+  /// Triggers a rebuild when the loyalty card field gains/loses focus so the
+  /// explanatory note below it can appear/disappear. No other state changes.
+  void _onLoyaltyFocusChanged() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   void _tryPrefill() {
@@ -92,6 +110,66 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
     if (_loyaltyCtrl.text.isEmpty && auth.profile?.loyaltyCard != null) {
       _loyaltyCtrl.text = auth.profile!.loyaltyCard!;
+    }
+  }
+
+  /// Fills any controller left empty by [_prefillFromAuth] with values from
+  /// the local checkout draft. Auth/profile data therefore always wins; the
+  /// draft only plugs gaps (typical for guests or incomplete profiles).
+  ///
+  /// Promo code is intentionally not restored — see class-level docs on
+  /// [CheckoutDraftEntity] for rationale.
+  Future<void> _loadCheckoutDraft() async {
+    final CheckoutDraftEntity? draft;
+    try {
+      draft = await sl<CheckoutDraftRepository>().load();
+    } catch (_) {
+      // Storage failures must not break the checkout screen.
+      return;
+    }
+    if (draft == null || !mounted) return;
+
+    var changed = false;
+    if (_nameCtrl.text.isEmpty && (draft.name ?? '').isNotEmpty) {
+      _nameCtrl.text = draft.name!;
+      changed = true;
+    }
+    if (_phoneCtrl.text.isEmpty && (draft.phone ?? '').isNotEmpty) {
+      _phoneCtrl.text = draft.phone!;
+      changed = true;
+    }
+    if (_emailCtrl.text.isEmpty && (draft.email ?? '').isNotEmpty) {
+      _emailCtrl.text = draft.email!;
+      changed = true;
+    }
+    if (_loyaltyCtrl.text.isEmpty && (draft.loyaltyCard ?? '').isNotEmpty) {
+      _loyaltyCtrl.text = draft.loyaltyCard!;
+      changed = true;
+    }
+
+    if (changed) {
+      // Rebuild so the loyalty helper note picks up the non-empty field
+      // and any bound BlocBuilder redraws cleanly.
+      setState(() {});
+    }
+  }
+
+  /// Persists a snapshot of the contact fields for next-session prefill.
+  /// Called only after a confirmed `submissionSuccess` transition — never
+  /// on failures or partial input. Any storage error is swallowed so the
+  /// post-submit navigation continues uninterrupted.
+  Future<void> _saveCheckoutDraft() async {
+    final draft = CheckoutDraftEntity(
+      name: _nameCtrl.text,
+      phone: _phoneCtrl.text,
+      email: _emailCtrl.text,
+      loyaltyCard: _loyaltyCtrl.text,
+    );
+    try {
+      await sl<CheckoutDraftRepository>().save(draft);
+    } catch (_) {
+      // Swallow — draft persistence is a convenience, not a correctness
+      // requirement, and the order has already succeeded at this point.
     }
   }
 
@@ -211,6 +289,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 curr.errorMessage != null),
         listener: (context, state) {
           if (state.submissionSuccess) {
+            // Fire-and-forget; success navigation must not wait on local
+            // storage.
+            unawaited(_saveCheckoutDraft());
             context.go(RouteNames.requestSuccess);
           } else if (!state.isSubmitting && state.errorMessage != null) {
             ScaffoldMessenger.of(context)
@@ -506,10 +587,52 @@ class _CheckoutPageState extends State<CheckoutPage> {
               controller: _loyaltyCtrl,
               hint: 'Номер карты клиента',
               action: TextInputAction.next,
+              focusNode: _loyaltyFocus,
+              onChanged: (_) => setState(() {}),
+            ),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              alignment: Alignment.topCenter,
+              child: _shouldShowLoyaltyNote()
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: _buildLoyaltyHelperNote(),
+                    )
+                  : const SizedBox(width: double.infinity),
             ),
           ],
         );
       },
+    );
+  }
+
+  bool _shouldShowLoyaltyNote() {
+    return _loyaltyFocus.hasFocus || _loyaltyCtrl.text.trim().isNotEmpty;
+  }
+
+  Widget _buildLoyaltyHelperNote() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: const [
+        Icon(
+          Icons.info_outline,
+          size: 14,
+          color: AppColors.textTertiary,
+        ),
+        SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Text(
+            'Скидка по карте клиента будет рассчитана менеджером при '
+            'обработке заказа. Итоговая сумма в приложении её не учитывает.',
+            style: TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: AppColors.textTertiary,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1015,9 +1138,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
     int maxLines = 1,
     String? Function(String?)? validator,
     void Function(String)? onChanged,
+    FocusNode? focusNode,
   }) {
     return TextFormField(
       controller: controller,
+      focusNode: focusNode,
       decoration: InputDecoration(hintText: hint),
       keyboardType: keyboard,
       textInputAction: action,

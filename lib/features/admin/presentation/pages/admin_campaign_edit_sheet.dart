@@ -9,6 +9,8 @@ import '../../domain/entities/discount_campaign_entity.dart';
 import '../../domain/entities/discount_campaign_target_entity.dart';
 import '../cubit/admin_discounts_cubit.dart';
 import '../widgets/admin_form_helpers.dart';
+import '../widgets/admin_target_editor.dart';
+import '../widgets/admin_validity_period_field.dart';
 
 /// Bottom-sheet form used to create or edit either a promocode or an
 /// automatic discount. The same widget handles both `kind`s — the targets
@@ -58,12 +60,18 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
   late TextEditingController _codeCtrl;
   late TextEditingController _percentCtrl;
   late TextEditingController _minOrderCtrl;
-  late TextEditingController _startsCtrl;
-  late TextEditingController _endsCtrl;
   late TextEditingController _maxRedemptionsCtrl;
   late TextEditingController _descriptionCtrl;
   late bool _isActive;
   late List<DiscountCampaignTargetEntity> _targets;
+
+  DateTime? _startsAt;
+  DateTime? _endsAt;
+  // Preserves legacy DateTime precision on unchanged edits: when the user
+  // never opens the validity sheet, the original `starts_at`/`ends_at`
+  // values are written back unchanged instead of being normalized to
+  // start/end-of-day.
+  bool _validityPeriodTouched = false;
 
   bool _saving = false;
 
@@ -79,8 +87,8 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
     _minOrderCtrl = TextEditingController(
       text: c.minOrderAmount > 0 ? _trimNumeric(c.minOrderAmount) : '',
     );
-    _startsCtrl = TextEditingController(text: formatAdminDateInput(c.startsAt));
-    _endsCtrl = TextEditingController(text: formatAdminDateInput(c.endsAt));
+    _startsAt = c.startsAt;
+    _endsAt = c.endsAt;
     _maxRedemptionsCtrl = TextEditingController(
       text: c.maxRedemptions?.toString() ?? '',
     );
@@ -107,8 +115,6 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
     _codeCtrl.dispose();
     _percentCtrl.dispose();
     _minOrderCtrl.dispose();
-    _startsCtrl.dispose();
-    _endsCtrl.dispose();
     _maxRedemptionsCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
@@ -120,20 +126,14 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
 
     if (!_formKey.currentState!.validate()) return;
 
-    DateTime? startsAt;
-    DateTime? endsAt;
-    try {
-      startsAt = parseAdminDateInput(_startsCtrl.text);
-    } on FormatException catch (e) {
-      _showError('Неверная дата начала: ${e.message}');
-      return;
-    }
-    try {
-      endsAt = parseAdminDateInput(_endsCtrl.text);
-    } on FormatException catch (e) {
-      _showError('Неверная дата окончания: ${e.message}');
-      return;
-    }
+    // Untouched edits must preserve the original persisted DateTime
+    // precision (legacy campaigns may have non-midnight `starts_at` /
+    // `ends_at` values). Only normalized values emitted by the validity
+    // sheet replace them.
+    final startsAt =
+        _validityPeriodTouched ? _startsAt : widget.initial.startsAt;
+    final endsAt =
+        _validityPeriodTouched ? _endsAt : widget.initial.endsAt;
 
     if (startsAt != null && endsAt != null && !endsAt.isAfter(startsAt)) {
       _showError('Дата окончания должна быть позже даты начала');
@@ -238,256 +238,312 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
     return v.toString();
   }
 
+  void _onGenerateCode() {
+    final hint = double.tryParse(
+      _percentCtrl.text.trim().replaceAll(',', '.'),
+    );
+    final suggestion = generatePromocodeSuggestion(percentHint: hint);
+    _codeCtrl.value = TextEditingValue(
+      text: suggestion,
+      selection: TextSelection.collapsed(offset: suggestion.length),
+    );
+  }
+
+  void _applyPercentPreset(int percent) {
+    final text = percent.toString();
+    _percentCtrl.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPromo = widget.initial.kind == DiscountCampaignKind.promocode;
     final isAutomatic = !isPromo;
+    final isPersisted = widget.initial.isPersisted;
     final title = isPromo
-        ? (widget.initial.isPersisted
-            ? 'Редактирование промокода'
-            : 'Новый промокод')
-        : (widget.initial.isPersisted
+        ? (isPersisted ? 'Редактирование промокода' : 'Новый промокод')
+        : (isPersisted
             ? 'Редактирование скидки'
             : 'Новая автоматическая скидка');
+    final submitLabel = _submitLabel(isPromo: isPromo, isPersisted: isPersisted);
 
-    return SafeArea(
-      top: false,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.92,
+    // Local input theme override: softer focused border (dark-gray action
+    // tone) instead of the global pure-black focused border, scoped to
+    // this admin form only.
+    final baseTheme = Theme.of(context);
+    final baseInputTheme = baseTheme.inputDecorationTheme;
+    final adminInputTheme = baseInputTheme.copyWith(
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderSide: const BorderSide(
+          color: AppColors.action,
+          width: 1.2,
         ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _SheetHeader(title: title),
-              Flexible(
-                child: ListView(
-                  controller: ScrollController(),
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.lg,
-                    AppSpacing.md,
-                    AppSpacing.lg,
-                    AppSpacing.lg,
-                  ),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderSide: BorderSide(
+          color: AppColors.border.withValues(alpha: 0.8),
+        ),
+      ),
+    );
+
+    return Theme(
+      data: baseTheme.copyWith(inputDecorationTheme: adminInputTheme),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(context).size.height * 0.92,
+          ),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _SheetHeader(title: title),
+                Flexible(
+                  child: ListView(
+                    controller: ScrollController(),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.sm,
+                      AppSpacing.lg,
+                      AppSpacing.xxxl,
+                    ),
                   children: [
-                    const AdminFieldLabel('Название'),
-                    TextFormField(
-                      controller: _nameCtrl,
-                      decoration: const InputDecoration(
-                        hintText: 'Например: Весна-25',
-                      ),
-                      validator: (v) {
-                        if ((v ?? '').trim().isEmpty) {
-                          return 'Укажите название';
-                        }
-                        return null;
-                      },
-                    ),
-                    if (isPromo) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      const AdminFieldLabel('Код'),
-                      TextFormField(
-                        controller: _codeCtrl,
-                        textCapitalization: TextCapitalization.characters,
-                        decoration: const InputDecoration(
-                          hintText: 'NEWYEAR15',
+                    _AdminFormSection(
+                      title: 'Основное',
+                      children: [
+                        const AdminFieldLabel('Название'),
+                        TextFormField(
+                          controller: _nameCtrl,
+                          decoration: const InputDecoration(
+                            hintText: 'Например: Весна-25',
+                          ),
+                          validator: (v) {
+                            if ((v ?? '').trim().isEmpty) {
+                              return 'Укажите название';
+                            }
+                            return null;
+                          },
                         ),
-                        onChanged: (v) {
-                          final upper = v.toUpperCase();
-                          if (upper != v) {
-                            _codeCtrl.value = TextEditingValue(
-                              text: upper,
-                              selection:
-                                  TextSelection.collapsed(offset: upper.length),
+                        if (isPromo) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Row(
+                            children: [
+                              const Expanded(child: AdminFieldLabel('Код')),
+                              _InlineAction(
+                                icon: Icons.auto_awesome_outlined,
+                                label: 'Сгенерировать',
+                                onTap: _onGenerateCode,
+                              ),
+                            ],
+                          ),
+                          TextFormField(
+                            controller: _codeCtrl,
+                            textCapitalization:
+                                TextCapitalization.characters,
+                            style: const TextStyle(
+                              letterSpacing: 1.2,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: 'NEWYEAR15',
+                            ),
+                            onChanged: (v) {
+                              final upper = v.toUpperCase();
+                              if (upper != v) {
+                                _codeCtrl.value = TextEditingValue(
+                                  text: upper,
+                                  selection: TextSelection.collapsed(
+                                    offset: upper.length,
+                                  ),
+                                );
+                              }
+                            },
+                            validator: (v) {
+                              if ((v ?? '').trim().isEmpty) {
+                                return 'Укажите код';
+                              }
+                              return null;
+                            },
+                          ),
+                          const _FieldHint(
+                            text:
+                                'Покупатель вводит этот код при оформлении заказа.',
+                          ),
+                        ],
+                        const SizedBox(height: AppSpacing.lg),
+                        const AdminFieldLabel('Процент скидки'),
+                        TextFormField(
+                          controller: _percentCtrl,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            hintText: 'от 0 до 100',
+                            suffixText: '%',
+                          ),
+                          validator: (v) {
+                            final s =
+                                (v ?? '').trim().replaceAll(',', '.');
+                            if (s.isEmpty) return 'Укажите процент скидки';
+                            final p = double.tryParse(s);
+                            if (p == null || p <= 0 || p > 100) {
+                              return 'Введите число от 0 до 100';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _percentCtrl,
+                          builder: (_, value, _) {
+                            final current = double.tryParse(
+                              value.text.trim().replaceAll(',', '.'),
                             );
-                          }
-                        },
-                        validator: (v) {
-                          if ((v ?? '').trim().isEmpty) {
-                            return 'Укажите код';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
-                    const AdminFieldLabel('Процент скидки'),
-                    TextFormField(
-                      controller: _percentCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'от 0 до 100',
-                        suffixText: '%',
-                      ),
-                      validator: (v) {
-                        final s = (v ?? '').trim().replaceAll(',', '.');
-                        if (s.isEmpty) return 'Укажите процент скидки';
-                        final p = double.tryParse(s);
-                        if (p == null || p <= 0 || p > 100) {
-                          return 'Введите число от 0 до 100';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const AdminFieldLabel('Мин. сумма'),
-                              TextFormField(
-                                controller: _minOrderCtrl,
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                  decimal: true,
-                                ),
-                                decoration: const InputDecoration(
-                                  hintText: '0',
-                                  suffixText: '₽',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const AdminFieldLabel('Лимит использований'),
-                              TextFormField(
-                                controller: _maxRedemptionsCtrl,
-                                keyboardType: TextInputType.number,
-                                decoration: const InputDecoration(
-                                  hintText: 'без лимита',
-                                ),
-                              ),
-                            ],
-                          ),
+                            return _PercentPresetRow(
+                              selectedPercent: current,
+                              onTap: _applyPercentPreset,
+                            );
+                          },
                         ),
                       ],
                     ),
                     const SizedBox(height: AppSpacing.lg),
-                    const AdminFieldLabel('Период действия'),
-                    Row(
+                    _AdminFormSection(
+                      title: 'Ограничения',
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _startsCtrl,
-                            decoration: const InputDecoration(
-                              hintText: 'ГГГГ-ММ-ДД ЧЧ:ММ',
-                              labelText: 'Начало',
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const AdminFieldLabel('Мин. сумма'),
+                                  TextFormField(
+                                    controller: _minOrderCtrl,
+                                    keyboardType: const TextInputType
+                                        .numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      hintText: '0',
+                                      suffixText: '₽',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _endsCtrl,
-                            decoration: const InputDecoration(
-                              hintText: 'ГГГГ-ММ-ДД ЧЧ:ММ',
-                              labelText: 'Окончание',
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  const AdminFieldLabel(
+                                      'Лимит использований'),
+                                  TextFormField(
+                                    controller: _maxRedemptionsCtrl,
+                                    keyboardType: TextInputType.number,
+                                    decoration: const InputDecoration(
+                                      hintText: 'без лимита',
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
+                        const _FieldHint(
+                          text:
+                              '0 — без минимальной суммы. Лимит можно оставить пустым.',
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        const AdminFieldLabel('Период действия'),
+                        AdminValidityPeriodField(
+                          startsAt: _startsAt,
+                          endsAt: _endsAt,
+                          helperText:
+                              'Если период не выбран, скидка действует без ограничения.',
+                          onChanged: (value) {
+                            setState(() {
+                              _startsAt = value.startsAt;
+                              _endsAt = value.endsAt;
+                              _validityPeriodTouched = true;
+                            });
+                          },
+                        ),
+                        if (isAutomatic) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          const AdminFieldLabel('Условия'),
+                          const SizedBox(height: AppSpacing.xs),
+                          AdminTargetEditor(
+                            targets: _targets,
+                            onChanged: (next) => setState(() {
+                              _targets = List.of(next);
+                            }),
+                          ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Оставьте поле пустым, чтобы не ограничивать.',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
                     const SizedBox(height: AppSpacing.lg),
-                    const AdminFieldLabel('Описание'),
-                    TextFormField(
-                      controller: _descriptionCtrl,
-                      maxLines: 3,
-                      minLines: 2,
-                      decoration: const InputDecoration(
-                        hintText: 'Не обязательно',
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    SwitchListTile.adaptive(
-                      title: const Text(
-                        'Активна',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                    _AdminFormSection(
+                      title: 'Дополнительно',
+                      children: [
+                        const AdminFieldLabel('Описание'),
+                        TextFormField(
+                          controller: _descriptionCtrl,
+                          maxLines: 3,
+                          minLines: 2,
+                          decoration: const InputDecoration(
+                            hintText: 'Короткое описание для администратора',
+                          ),
                         ),
-                      ),
-                      subtitle: Text(
-                        _isActive
-                            ? 'Применяется к заказам'
-                            : 'Не применяется к заказам',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textTertiary,
+                        const _FieldHint(
+                          text: 'Необязательное поле.',
                         ),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      value: _isActive,
-                      onChanged: (v) => setState(() => _isActive = v),
-                    ),
-                    if (isAutomatic) ...[
-                      const SizedBox(height: AppSpacing.lg),
-                      const Divider(height: 1),
-                      const SizedBox(height: AppSpacing.lg),
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Условия',
+                        const SizedBox(height: AppSpacing.sm),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceWarm,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.md),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: 2,
+                          ),
+                          child: SwitchListTile.adaptive(
+                            title: const Text(
+                              'Активна',
                               style: TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.textPrimary,
                               ),
                             ),
+                            subtitle: Text(
+                              _isActive
+                                  ? 'Применяется к заказам'
+                                  : 'Не применяется к заказам',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                              ),
+                            ),
+                            contentPadding: EdgeInsets.zero,
+                            value: _isActive,
+                            onChanged: (v) =>
+                                setState(() => _isActive = v),
                           ),
-                          TextButton.icon(
-                            onPressed: _addTarget,
-                            icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Добавить'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      const Text(
-                        'Хотя бы одно условие. Используйте «Все товары» для скидки без ограничений.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textTertiary,
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      ..._targets.asMap().entries.map((entry) {
-                        return Padding(
-                          padding:
-                              const EdgeInsets.only(bottom: AppSpacing.md),
-                          child: _TargetRow(
-                            target: entry.value,
-                            onChanged: (next) => setState(() {
-                              _targets[entry.key] = next;
-                            }),
-                            onRemove: _targets.length > 1
-                                ? () => setState(() {
-                                      _targets.removeAt(entry.key);
-                                    })
-                                : null,
-                          ),
-                        );
-                      }),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -505,7 +561,7 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
                   ),
                 ),
                 child: TiffanyPrimaryButton(
-                  label: 'Сохранить',
+                  label: submitLabel,
                   onPressed: _saving ? null : _onSave,
                   isLoading: _saving,
                 ),
@@ -514,16 +570,194 @@ class _AdminCampaignEditSheetState extends State<AdminCampaignEditSheet> {
           ),
         ),
       ),
+    ),
     );
   }
 
-  void _addTarget() {
-    setState(() {
-      _targets.add(const DiscountCampaignTargetEntity(
-        targetType: DiscountTargetType.brand,
-        matchMode: DiscountTargetMatchMode.exact,
-      ));
-    });
+  String _submitLabel({required bool isPromo, required bool isPersisted}) {
+    if (isPersisted) {
+      return isPromo ? 'Сохранить промокод' : 'Сохранить скидку';
+    }
+    return isPromo ? 'Создать промокод' : 'Создать скидку';
+  }
+
+}
+
+class _AdminFormSection extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+
+  const _AdminFormSection({required this.title, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppColors.border.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: Text(
+              title.toUpperCase(),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+                color: AppColors.textTertiary,
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _FieldHint extends StatelessWidget {
+  final String text;
+  const _FieldHint({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          color: AppColors.textTertiary,
+          height: 1.35,
+        ),
+      ),
+    );
+  }
+}
+
+class _InlineAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _InlineAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: 4,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: AppColors.textPrimary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PercentPresetRow extends StatelessWidget {
+  static const List<int> presets = [5, 10, 15, 20, 25];
+
+  final double? selectedPercent;
+  final ValueChanged<int> onTap;
+
+  const _PercentPresetRow({
+    required this.selectedPercent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.xs,
+      children: presets.map((value) {
+        final isSelected =
+            selectedPercent != null && selectedPercent == value.toDouble();
+        return _PercentChip(
+          label: '$value%',
+          selected: isSelected,
+          onTap: () => onTap(value),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _PercentChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PercentChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? AppColors.textPrimary : AppColors.surfaceWarm,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.xs + 2,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(
+              color: selected ? AppColors.textPrimary : AppColors.border,
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? AppColors.surface : AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -562,100 +796,3 @@ class _SheetHeader extends StatelessWidget {
   }
 }
 
-class _TargetRow extends StatelessWidget {
-  final DiscountCampaignTargetEntity target;
-  final ValueChanged<DiscountCampaignTargetEntity> onChanged;
-  final VoidCallback? onRemove;
-
-  const _TargetRow({
-    required this.target,
-    required this.onChanged,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final showValue = target.targetType.requiresValue;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceWarm,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: DropdownButtonFormField<DiscountTargetType>(
-                  initialValue: target.targetType,
-                  isDense: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Тип',
-                    isDense: true,
-                  ),
-                  items: DiscountTargetType.values
-                      .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t.russianLabel),
-                          ))
-                      .toList(),
-                  onChanged: (v) {
-                    if (v == null) return;
-                    onChanged(target.copyWith(
-                      targetType: v,
-                      clearTargetValue: v == DiscountTargetType.all,
-                    ));
-                  },
-                ),
-              ),
-              if (onRemove != null)
-                IconButton(
-                  onPressed: onRemove,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 20,
-                    color: AppColors.textTertiary,
-                  ),
-                ),
-            ],
-          ),
-          if (showValue) ...[
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              initialValue: target.targetValue,
-              decoration: const InputDecoration(
-                labelText: 'Значение',
-                isDense: true,
-                hintText: 'например: Hermes / Парфюмерия / UID',
-              ),
-              onChanged: (v) =>
-                  onChanged(target.copyWith(targetValue: v.trim())),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            DropdownButtonFormField<DiscountTargetMatchMode>(
-              initialValue: target.matchMode,
-              isDense: true,
-              decoration: const InputDecoration(
-                labelText: 'Совпадение',
-                isDense: true,
-              ),
-              items: DiscountTargetMatchMode.values
-                  .map((m) => DropdownMenuItem(
-                        value: m,
-                        child: Text(m.russianLabel),
-                      ))
-                  .toList(),
-              onChanged: (v) {
-                if (v == null) return;
-                onChanged(target.copyWith(matchMode: v));
-              },
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}

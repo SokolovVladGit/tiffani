@@ -80,6 +80,14 @@ class CatalogRepositoryImpl implements CatalogRepository {
   }
 
   @override
+  Future<CatalogItemEntity?> getCatalogItemByProductId(
+    String productId,
+  ) async {
+    final dto = await _dataSource.getCatalogItemByProductId(productId);
+    return dto?.toEntity();
+  }
+
+  @override
   Future<List<CatalogItemEntity>> getCatalogItemsByVariantIds(
     List<String> ids,
   ) async {

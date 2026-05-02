@@ -106,6 +106,25 @@ class CatalogSupabaseDataSourceImpl implements CatalogSupabaseDataSource {
   }
 
   @override
+  Future<CatalogItemDto?> getCatalogItemByProductId(String productId) async {
+    _logger.d('getCatalogItemByProductId id=$productId');
+    try {
+      final response = await _client
+          .from(_table)
+          .select()
+          .eq('is_active', true)
+          .eq('product_id', productId)
+          .limit(1)
+          .maybeSingle();
+      if (response == null) return null;
+      return CatalogItemDto.fromMap(response);
+    } catch (e) {
+      _logger.e('getCatalogItemByProductId failed: $e');
+      rethrow;
+    }
+  }
+
+  @override
   Future<List<CatalogItemDto>> getCatalogItemsByVariantIds(
     List<String> ids,
   ) async {
