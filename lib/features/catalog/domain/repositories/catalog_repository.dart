@@ -29,6 +29,13 @@ abstract interface class CatalogRepository {
 
   Future<CatalogItemEntity?> getCatalogItemByVariantId(String variantId);
 
+  /// Best-effort product display resolver by `products.id` (as stored in
+  /// `catalog_items.product_id`). Intended for admin discount target UI
+  /// where a campaign's `target_value` is a product_id and the UI must
+  /// show title/brand/category/image instead of a raw UUID. Returns
+  /// `null` when no active variant exists for the product.
+  Future<CatalogItemEntity?> getCatalogItemByProductId(String productId);
+
   Future<List<CatalogItemEntity>> getCatalogItemsByVariantIds(List<String> ids);
 
   Future<List<String>> getAvailableBrands();

@@ -195,14 +195,10 @@ class AdminCampaignCard extends StatelessWidget {
   }
 
   static String _formatPeriod(DiscountCampaignEntity c) {
-    final hasStart = c.startsAt != null;
-    final hasEnd = c.endsAt != null;
-    if (!hasStart && !hasEnd) return 'без ограничений по сроку';
-    final start = formatAdminDateShort(c.startsAt);
-    final end = formatAdminDateShort(c.endsAt);
-    if (hasStart && hasEnd) return 'с $start по $end';
-    if (hasStart) return 'с $start';
-    return 'до $end';
+    if (c.startsAt == null && c.endsAt == null) {
+      return 'без ограничений по сроку';
+    }
+    return formatValidityPeriodSummary(c.startsAt, c.endsAt).toLowerCase();
   }
 
   static String _formatUsage(DiscountCampaignEntity c) {

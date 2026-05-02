@@ -29,6 +29,13 @@ abstract interface class CatalogSupabaseDataSource {
 
   Future<CatalogItemDto?> getCatalogItemByVariantId(String variantId);
 
+  /// Best-effort lookup of a single active catalog row by `product_id`.
+  /// A product may have multiple variants — the first active variant is
+  /// returned purely for display (title/brand/category/image) in admin
+  /// discount target UI. Returns `null` when the product has no active
+  /// variants in the catalog view.
+  Future<CatalogItemDto?> getCatalogItemByProductId(String productId);
+
   Future<List<CatalogItemDto>> getCatalogItemsByVariantIds(List<String> ids);
 
   Future<List<String>> getAvailableBrands();
