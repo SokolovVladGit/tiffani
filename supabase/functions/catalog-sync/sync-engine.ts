@@ -7,6 +7,7 @@ import type {
   ProductImageRow,
   SyncStats,
   SyncError,
+  UpsertCatalogSliceOptions,
 } from "./types.ts";
 import { buildCategoryLookup } from "./yml-parser.ts";
 
@@ -75,13 +76,16 @@ export async function syncCatalog(
  *   - Admin-curated products (`tilda_uid IS NULL`) cannot match the
  *     `tilda_uid` conflict key and therefore remain untouched.
  *   - `is_active` is only ever written as `true` (via `buildProductRow`).
+ *   - When `options.syncSeenAt` is set, product and variant upsert rows
+ *     include `last_seen_in_yml` for observability (safe sync / refill).
  */
 export async function upsertCatalogSlice(
   client: SupabaseClient,
   catalog: TildaCatalog,
   _runId: string,
+  options?: UpsertCatalogSliceOptions,
 ): Promise<{ stats: SyncStats; errors: SyncError[] }> {
-  const { stats, errors } = await upsertPhases1to3(client, catalog);
+  const { stats, errors } = await upsertPhases1to3(client, catalog, options);
   stats.error_count = errors.length;
   return { stats, errors };
 }
@@ -89,6 +93,7 @@ export async function upsertCatalogSlice(
 async function upsertPhases1to3(
   client: SupabaseClient,
   catalog: TildaCatalog,
+  options?: UpsertCatalogSliceOptions,
 ): Promise<{
   stats: SyncStats;
   errors: SyncError[];
@@ -109,13 +114,16 @@ async function upsertPhases1to3(
   const productGroups = groupOffersByProduct(catalog.offers);
   stats.products_seen = productGroups.size;
   stats.variants_seen = catalog.offers.length;
+  const syncSeenAt = options?.syncSeenAt;
 
   // --- Phase 1: Build and upsert product-level rows ---
   const seenTildaUids = new Set<string>();
   const productRows: ProductRow[] = [];
   for (const [tildaUid, offers] of productGroups) {
     try {
-      productRows.push(buildProductRow(tildaUid, offers[0], categoryLookup));
+      productRows.push(
+        buildProductRow(tildaUid, offers[0], categoryLookup, syncSeenAt),
+      );
       seenTildaUids.add(tildaUid);
     } catch (e) {
       errors.push({
@@ -147,7 +155,7 @@ async function upsertPhases1to3(
             stage: "upsert_product",
             external_key: row.tilda_uid,
             message: rowErr.message,
-            details: { code: (rowErr as Record<string, unknown>).code },
+            details: { code: (rowErr as unknown as { code?: string }).code },
           });
         } else {
           stats.products_upserted++;
@@ -202,7 +210,12 @@ async function upsertPhases1to3(
 
       try {
         variantBatch.push(
-          buildVariantRow(offer, resolvedProductId, categoryLookup),
+          buildVariantRow(
+            offer,
+            resolvedProductId,
+            categoryLookup,
+            syncSeenAt,
+          ),
         );
 
         const offerPictures = offerPictureList(offer);
@@ -246,7 +259,7 @@ async function upsertPhases1to3(
               stage: "upsert_variant",
               external_key: row.variant_id,
               message: rowErr.message,
-              details: { code: (rowErr as Record<string, unknown>).code },
+              details: { code: (rowErr as unknown as { code?: string }).code },
             });
           } else {
             stats.variants_upserted++;
@@ -363,12 +376,13 @@ function buildProductRow(
   tildaUid: string,
   representative: TildaOffer,
   categories: Map<string, string>,
+  syncSeenAt?: string,
 ): ProductRow {
   const category = representative.categoryId
     ? categories.get(representative.categoryId) ?? null
     : null;
 
-  return {
+  const row: ProductRow = {
     tilda_uid: tildaUid,
     title: representative.name ?? `Product ${tildaUid}`,
     brand: representative.vendor ?? null,
@@ -379,12 +393,15 @@ function buildProductRow(
     photo: representative.picture ?? null,
     is_active: true,
   };
+  if (syncSeenAt) row.last_seen_in_yml = syncSeenAt;
+  return row;
 }
 
 function buildVariantRow(
   offer: TildaOffer,
   productId: string,
   categories: Map<string, string>,
+  syncSeenAt?: string,
 ): VariantRow {
   let edition: string | null = null;
   let modification: string | null = null;
@@ -399,7 +416,7 @@ function buildVariantRow(
 
   void categories;
 
-  return {
+  const row: VariantRow = {
     variant_id: offer.id,
     product_id: productId,
     title: offer.name ?? `Variant ${offer.id}`,
@@ -411,6 +428,8 @@ function buildVariantRow(
     photo: offer.picture ?? null,
     attributes: Object.keys(attrs).length > 0 ? attrs : null,
   };
+  if (syncSeenAt) row.last_seen_in_yml = syncSeenAt;
+  return row;
 }
 
 function stripHtml(html: string): string {

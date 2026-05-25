@@ -58,6 +58,8 @@ export interface ProductRow {
   description: string | null;
   photo: string | null;
   is_active: boolean;
+  /** Set only when caller passes `syncSeenAt` into `upsertCatalogSlice`. */
+  last_seen_in_yml?: string;
 }
 
 /**
@@ -74,6 +76,14 @@ export interface VariantRow {
   modifications: string | null;
   photo: string | null;
   attributes: Record<string, unknown> | null;
+  /** Set only when caller passes `syncSeenAt` into `upsertCatalogSlice`. */
+  last_seen_in_yml?: string;
+}
+
+/** Optional knobs for `upsertCatalogSlice` (safe / refill paths). */
+export interface UpsertCatalogSliceOptions {
+  /** ISO-8601 timestamp written to `last_seen_in_yml` on touched rows. */
+  syncSeenAt?: string;
 }
 
 export interface ProductImageRow {

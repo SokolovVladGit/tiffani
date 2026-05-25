@@ -226,10 +226,12 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const syncSeenAt = new Date().toISOString();
     const { stats, errors } = await upsertCatalogSlice(
       supabase,
       slice,
       runId ?? crypto.randomUUID(),
+      { syncSeenAt },
     );
 
     const finalStatus: RunStatus = errors.length > 0
@@ -259,6 +261,9 @@ Deno.serve(async (req) => {
       metadata: {
         uid_list_size: uids.length,
         dry_run: false,
+        sync_seen_at: syncSeenAt,
+        sync_seen_at_note:
+          "Refill stamps last_seen_in_yml only for SKUs in this slice; full-catalog freshness requires safe YML sync.",
         classifier_counts: counts,
         skipped_buckets: notUpsertBuckets(),
         slice_metrics: sliceMetrics,
@@ -269,6 +274,7 @@ Deno.serve(async (req) => {
       mode: "live",
       run_id: runId,
       status: finalStatus,
+      sync_seen_at: syncSeenAt,
       classifier: classifierSummary,
       slice_metrics: sliceMetrics,
       upsert: {

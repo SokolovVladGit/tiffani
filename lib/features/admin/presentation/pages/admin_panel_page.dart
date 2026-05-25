@@ -10,6 +10,7 @@ import '../../domain/entities/discount_campaign_target_entity.dart';
 import '../cubit/admin_discounts_cubit.dart';
 import '../cubit/admin_discounts_state.dart';
 import '../widgets/admin_campaign_card.dart';
+import '../widgets/admin_yml_import_panel.dart';
 import 'admin_campaign_edit_sheet.dart';
 
 /// Top-level admin discount/promocode management surface.
@@ -29,7 +30,7 @@ class AdminPanelPage extends StatelessWidget {
   }
 }
 
-enum _AdminTab { promocodes, automatics }
+enum _AdminTab { promocodes, automatics, ymlImport }
 
 class _AdminPanelView extends StatefulWidget {
   const _AdminPanelView();
@@ -116,6 +117,7 @@ class _AdminPanelViewState extends State<_AdminPanelView> {
   }
 
   Future<void> _refresh() async {
+    if (_tab == _AdminTab.ymlImport) return;
     final cubit = context.read<AdminDiscountsCubit>();
     if (_tab == _AdminTab.promocodes) {
       await cubit.loadPromocodes(force: true);
@@ -136,36 +138,39 @@ class _AdminPanelViewState extends State<_AdminPanelView> {
               onChanged: _switchTab,
             ),
             const SizedBox(height: AppSpacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _tab == _AdminTab.promocodes
-                          ? 'Управление промокодами'
-                          : 'Автоматические скидки',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
+            if (_tab != _AdminTab.ymlImport)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.lg,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _tab == _AdminTab.promocodes
+                            ? 'Управление промокодами'
+                            : 'Автоматические скидки',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _onCreate,
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Создать'),
-                  ),
-                ],
+                    TextButton.icon(
+                      onPressed: _onCreate,
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Создать'),
+                    ),
+                  ],
+                ),
               ),
-            ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refresh,
-                child: _buildList(state),
-              ),
+              child: _tab == _AdminTab.ymlImport
+                  ? const AdminYmlImportPanel()
+                  : RefreshIndicator(
+                      onRefresh: _refresh,
+                      child: _buildList(state),
+                    ),
             ),
           ],
         );
@@ -264,6 +269,11 @@ class _TabSwitcher extends StatelessWidget {
               selected: tab == _AdminTab.promocodes,
               onTap: () => onChanged(_AdminTab.promocodes),
             ),
+            _SegmentButton(
+              label: 'Импорт YML',
+              selected: tab == _AdminTab.ymlImport,
+              onTap: () => onChanged(_AdminTab.ymlImport),
+            ),
           ],
         ),
       ),
@@ -296,8 +306,10 @@ class _SegmentButton extends StatelessWidget {
           ),
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
               color:
                   selected ? AppColors.textPrimary : AppColors.textSecondary,

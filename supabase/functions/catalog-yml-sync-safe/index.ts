@@ -224,11 +224,14 @@ Deno.serve(async (req) => {
 
   // -------------------- LIVE UPSERT --------------------
 
+  const syncSeenAt = new Date().toISOString();
+
   try {
     const { stats, errors } = await upsertCatalogSlice(
       client,
       catalog,
       runId ?? crypto.randomUUID(),
+      { syncSeenAt },
     );
 
     const finalStatus: SafeSyncRunStatus = errors.length > 0 || missingError
@@ -256,6 +259,7 @@ Deno.serve(async (req) => {
         source,
         dry_run: false,
         no_deactivation: true,
+        sync_seen_at: syncSeenAt,
         duration_ms: Date.now() - startedAt,
         yml: ymlMetrics,
         missing_candidates: missing,
@@ -267,6 +271,7 @@ Deno.serve(async (req) => {
       mode: "live",
       run_id: runId,
       status: finalStatus,
+      sync_seen_at: syncSeenAt,
       duration_ms: Date.now() - startedAt,
       yml: ymlMetrics,
       products_seen: stats.products_seen,
@@ -295,6 +300,7 @@ Deno.serve(async (req) => {
         source,
         dry_run: false,
         no_deactivation: true,
+        sync_seen_at: syncSeenAt,
         duration_ms: Date.now() - startedAt,
         yml: ymlMetrics,
         missing_candidates: missing,
