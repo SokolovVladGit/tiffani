@@ -19,6 +19,9 @@ Classifies UIDs. Writes nothing to catalog tables. Optionally logs a
   the `found_in_yml_offer` and `found_in_yml_group` buckets.
 - Calls `upsertCatalogSlice` (from `catalog-sync/sync-engine.ts`) which
   runs phases 1–3 only (products → variants → images).
+- Passes `syncSeenAt` so upserted rows get `last_seen_in_yml` when that
+  column exists. **Trade-off:** only refilled SKUs are stamped — full-catalog
+  freshness still comes from **catalog-yml-sync-safe** live runs.
 - **Never** calls `deactivateMissingProducts`.
 - Updates the run row with counters + status, and persists any per-row
   errors into `catalog_sync_run_errors`.
@@ -171,11 +174,12 @@ with `"dry_run": false`. The same call is safe to retry.
 
 ## Local tests
 
+From `supabase/functions/catalog-refill`:
+
 ```bash
-cd supabase/functions/catalog-refill
-deno test --allow-env --allow-net --allow-read
+deno task test
 ```
 
-`--allow-read` is required by `upsert-slice-contract.test.ts`, which
-performs a structural guard against regression of the deactivation
-invariant.
+(`deno.json` → `deno test --allow-read --allow-net`. On Deno 2.x, plain
+`deno test` may fail with `NotCapable` because `upsert-slice-contract.test.ts`
+reads `../catalog-sync/sync-engine.ts`.)

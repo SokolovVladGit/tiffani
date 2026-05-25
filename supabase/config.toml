@@ -9,3 +9,6 @@ verify_jwt = true
 
 [functions.catalog-yml-sync-safe]
 verify_jwt = true
+
+[functions.catalog-yml-import-manual]
+verify_jwt = true

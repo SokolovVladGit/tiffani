@@ -6,13 +6,61 @@ already-safe `upsertCatalogSlice` path.
 
 ## Status
 
-v1 — implemented in repo, **not yet deployed**, **not yet scheduled**.
-Manual dry-run and live verification must pass before any cron is
-enabled.
+Production path for scheduled sync. **pg_cron** should call
+`/functions/v1/catalog-yml-sync-safe` (e.g. every 30 minutes) with
+`{"dry_run":false,"source":"cron"}`. Do **not** schedule the legacy
+`catalog-sync` function.
+
+Repo changes (migrations, deploy) are applied by the operator; this
+document describes runtime behavior only.
+
+## Observability: `last_seen_in_yml`
+
+Base tables `products` and `product_variants` may include nullable
+`last_seen_in_yml` (timestamptz), set on **live** safe sync only for
+rows touched by the current YML upsert.
+
+| Situation | Meaning |
+|-----------|---------|
+| Non-null | That row appeared in the YML processed by a **live** safe sync at that time. |
+| NULL | Never observed by this mechanism yet (old data, or only dry-runs / old code path). |
+
+**Dry-run** does not call `upsertCatalogSlice` and does **not** update
+`last_seen_in_yml`.
+
+`catalog_items` is unchanged; this field is for ops/stale analysis only.
+
+## Production rollout order (`last_seen_in_yml`)
+
+Follow this sequence. **Do not deploy `catalog-yml-sync-safe` / `catalog-refill`
+builds that write `last_seen_in_yml` until the columns exist**, or live upserts
+will error against Postgres.
+
+1. Apply the additive migration (`20260509120000_add_last_seen_in_yml.sql`) via the SQL Editor or a reconciled migration process (not blind `supabase db push` if history is out of sync).
+2. Verify columns with the `information_schema` query in ops docs / below.
+3. Deploy `catalog-yml-sync-safe`.
+4. Optionally deploy `catalog-refill` (live refill also passes `syncSeenAt`).
+5. Run a **dry-run** safe sync (`dry_run` omitted or not `false`); confirm completion and that `products` / `product_variants` / `product_images` were not updated for catalog data (only `catalog_sync_runs` logging as designed).
+6. After validation, rely on cron or a **live** invocation only when operators intentionally set `dry_run: false`.
+7. Check latest `catalog_sync_runs` rows (`source_type = 'yml_safe_sync'`, `metadata.sync_seen_at`, `no_deactivation`) and sample `last_seen_in_yml` on `product_variants` / `products` (`tilda_uid IS NOT NULL`).
+
+## Tilda visibility experiment (read-only YML)
+
+Use `scripts/audit/inspect-tilda-yml-offer.ts` (see `scripts/audit/README.md`)
+to compare YML **before** and **after** toggling visibility in Tilda.
+
+1. Pick a low-risk product; record **title**, **group UID** (`tilda_uid`), **offer UID** (`variant_id`).
+2. Run the inspector with `--offer=<UID>` (and optional `--group=`).
+3. Toggle visibility **off** in Tilda; wait for YML refresh.
+4. Run the inspector again.
+5. Toggle visibility **on**; run again.
+6. Classify: **A** offer vanished from YML; **B** offer present but `available`/attrs changed; **C** no YML change.
+
+Do not infer product behavior from YML until the outcome is observed.
 
 ## Purpose
 
-When new products are added in Tilda, this function (once scheduled)
+When new products are added in Tilda, this function (when run live)
 brings them into Supabase, where Flutter clients pick them up through
 the `catalog_items` view. v1 is upsert-only: it never deactivates,
 never deletes, and never modifies admin-curated rows.
@@ -36,6 +84,9 @@ fails the build if any of these is violated:
   contain literally `"dry_run": false`.
 - Every run is stamped with `metadata.no_deactivation = true` for
   monitoring.
+- Live runs also set `metadata.sync_seen_at` (ISO timestamp applied to
+  `last_seen_in_yml` on upserted rows, when those columns exist).
+- Dry-run does not update `last_seen_in_yml`.
 
 ## Endpoint
 
@@ -100,6 +151,7 @@ invocation is rejected before the function body runs.
   "mode": "live",
   "run_id": "uuid",
   "status": "completed",
+  "sync_seen_at": "2026-05-09T12:00:00.000Z",
   "duration_ms": 18342,
   "yml": { "categories_count": 81, "groups_count": 1353, "offers_count": 2640 },
   "products_seen": 1353,
@@ -263,6 +315,17 @@ backward compatibility with the Flutter DTO and `catalog_items`.
   ```bash
   supabase functions delete catalog-yml-sync-safe --project-ref <ref>
   ```
+
+## Local tests (Deno)
+
+On **Deno 2.x**, tests in this folder read source files (`safety-contract.test.ts`)
+and pull remote deps. From `catalog-yml-sync-safe/`:
+
+```bash
+deno task test
+```
+
+(`deno.json` defines this as `deno test --allow-read --allow-net`. Plain `deno test` alone may fail with `NotCapable` on read.)
 
 ## Files
 

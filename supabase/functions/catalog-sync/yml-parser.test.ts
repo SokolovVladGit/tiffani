@@ -114,3 +114,51 @@ Deno.test("parseTildaYml exposes pictures alongside picture for back-compat", ()
   assert(offer.pictures && offer.pictures.length === 2);
   assertEquals(offer.picture, offer.pictures[0]);
 });
+
+Deno.test("parseTildaYml maps available=false on offer", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<yml_catalog date="2026-05-09">
+  <shop>
+    <name>t</name>
+    <company>t</company>
+    <url>https://t.example</url>
+    <currencies><currency id="MDL" rate="1"/></currencies>
+    <categories><category id="c1">Cat</category></categories>
+    <offers>
+      <offer id="999" group_id="G9" available="false">
+        <name>Hidden sample</name>
+        <price>1</price>
+        <currencyId>MDL</currencyId>
+        <categoryId>c1</categoryId>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>`;
+  const cat = parseTildaYml(xml);
+  assertEquals(cat.offers.length, 1);
+  assertEquals(cat.offers[0].available, false);
+});
+
+Deno.test("parseTildaYml defaults available to true when attribute omitted", () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<yml_catalog date="2026-05-09">
+  <shop>
+    <name>t</name>
+    <company>t</company>
+    <url>https://t.example</url>
+    <currencies><currency id="MDL" rate="1"/></currencies>
+    <categories><category id="c1">Cat</category></categories>
+    <offers>
+      <offer id="112" group_id="G1">
+        <name>No available attr</name>
+        <price>10</price>
+        <currencyId>MDL</currencyId>
+        <categoryId>c1</categoryId>
+      </offer>
+    </offers>
+  </shop>
+</yml_catalog>`;
+  const cat = parseTildaYml(xml);
+  assertEquals(cat.offers.length, 1);
+  assertEquals(cat.offers[0].available, true);
+});
