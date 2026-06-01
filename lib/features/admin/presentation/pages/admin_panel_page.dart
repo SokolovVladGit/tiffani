@@ -10,6 +10,7 @@ import '../../domain/entities/discount_campaign_target_entity.dart';
 import '../cubit/admin_discounts_cubit.dart';
 import '../cubit/admin_discounts_state.dart';
 import '../widgets/admin_campaign_card.dart';
+import '../widgets/admin_catalog_panel.dart';
 import '../widgets/admin_yml_import_panel.dart';
 import 'admin_campaign_edit_sheet.dart';
 
@@ -30,7 +31,7 @@ class AdminPanelPage extends StatelessWidget {
   }
 }
 
-enum _AdminTab { promocodes, automatics, ymlImport }
+enum _AdminTab { promocodes, automatics, catalog, ymlImport }
 
 class _AdminPanelView extends StatefulWidget {
   const _AdminPanelView();
@@ -117,7 +118,7 @@ class _AdminPanelViewState extends State<_AdminPanelView> {
   }
 
   Future<void> _refresh() async {
-    if (_tab == _AdminTab.ymlImport) return;
+    if (_tab == _AdminTab.ymlImport || _tab == _AdminTab.catalog) return;
     final cubit = context.read<AdminDiscountsCubit>();
     if (_tab == _AdminTab.promocodes) {
       await cubit.loadPromocodes(force: true);
@@ -138,7 +139,7 @@ class _AdminPanelViewState extends State<_AdminPanelView> {
               onChanged: _switchTab,
             ),
             const SizedBox(height: AppSpacing.md),
-            if (_tab != _AdminTab.ymlImport)
+            if (_tab != _AdminTab.ymlImport && _tab != _AdminTab.catalog)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.lg,
@@ -165,12 +166,14 @@ class _AdminPanelViewState extends State<_AdminPanelView> {
                 ),
               ),
             Expanded(
-              child: _tab == _AdminTab.ymlImport
-                  ? const AdminYmlImportPanel()
-                  : RefreshIndicator(
-                      onRefresh: _refresh,
-                      child: _buildList(state),
-                    ),
+              child: switch (_tab) {
+                _AdminTab.ymlImport => const AdminYmlImportPanel(),
+                _AdminTab.catalog => const AdminCatalogPanel(),
+                _ => RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: _buildList(state),
+                  ),
+              },
             ),
           ],
         );
@@ -270,7 +273,12 @@ class _TabSwitcher extends StatelessWidget {
               onTap: () => onChanged(_AdminTab.promocodes),
             ),
             _SegmentButton(
-              label: 'Импорт YML',
+              label: 'Каталог',
+              selected: tab == _AdminTab.catalog,
+              onTap: () => onChanged(_AdminTab.catalog),
+            ),
+            _SegmentButton(
+              label: 'YML',
               selected: tab == _AdminTab.ymlImport,
               onTap: () => onChanged(_AdminTab.ymlImport),
             ),
