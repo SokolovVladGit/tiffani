@@ -137,3 +137,25 @@ Deno.test(
     );
   },
 );
+
+Deno.test("ProductRow type omits app_is_visible", async () => {
+  const typesSrc = await Deno.readTextFile(
+    new URL("../catalog-sync/types.ts", import.meta.url),
+  );
+  const productRowBlock = typesSrc.slice(
+    typesSrc.indexOf("export interface ProductRow"),
+    typesSrc.indexOf("export interface VariantRow"),
+  );
+  assert(
+    !productRowBlock.includes("app_is_visible"),
+    "ProductRow must not include app_is_visible (sync must not overwrite admin visibility)",
+  );
+});
+
+Deno.test("buildProductRow omits app_is_visible", () => {
+  const body = extractFunctionBody(engineSource, "function buildProductRow");
+  assert(
+    !body.includes("app_is_visible"),
+    "buildProductRow must not write app_is_visible",
+  );
+});
