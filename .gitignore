@@ -1,5 +1,8 @@
 # Local-only, never committed (Tilda API discovery, secrets, scratch scripts).
 .local/
+
+# Local ops/audit artifacts
+failed_uids.txt
 .env
 .env.*
 

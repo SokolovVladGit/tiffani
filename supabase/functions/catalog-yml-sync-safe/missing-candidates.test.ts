@@ -1,12 +1,14 @@
 import {
-  assertEquals,
   assert,
+  assertEquals,
+  assertRejects,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
 import type { TildaCatalog } from "../catalog-sync/types.ts";
 import {
   collectYmlKeys,
   computeMissingCandidates,
+  MISSING_CANDIDATES_PAGE_SIZE,
 } from "./missing-candidates.ts";
 
 /**
@@ -78,7 +80,11 @@ function makeStubClient(rows: StubRow[]) {
         },
         range(from: number, to: number) {
           const slice = rows.slice(from, to + 1);
-          return Promise.resolve({ data: slice, error: null });
+          return Promise.resolve({
+            data: slice,
+            error: null,
+            count: rows.length,
+          });
         },
         update: trap("update"),
         delete: trap("delete"),
@@ -168,6 +174,123 @@ Deno.test(
     assert(
       hasNotNullTildaUid,
       "must apply .not('tilda_uid', 'is', null) to exclude admin products",
+    );
+  },
+);
+
+Deno.test("missing-candidates page size stays under the 1000 row cap", () => {
+  assertEquals(MISSING_CANDIDATES_PAGE_SIZE, 500);
+  assert(MISSING_CANDIDATES_PAGE_SIZE <= 1000);
+});
+
+Deno.test(
+  "missing-candidates pages through more than 1800 rows when the API caps at 1000",
+  async () => {
+    const rows: StubRow[] = Array.from({ length: 1850 }, (_, i) => ({
+      tilda_uid: `p-${i}`,
+    }));
+    const ranges: Array<[number, number]> = [];
+    const client = {
+      from() {
+        const builder = {
+          select() {
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          not() {
+            return builder;
+          },
+          range(from: number, to: number) {
+            ranges.push([from, to]);
+            const requested = rows.slice(from, to + 1);
+            const capped = requested.slice(0, 1000);
+            return Promise.resolve({
+              data: capped,
+              error: null,
+              count: rows.length,
+            });
+          },
+          update() {
+            throw new Error("forbidden mutation: update");
+          },
+          delete() {
+            throw new Error("forbidden mutation: delete");
+          },
+          upsert() {
+            throw new Error("forbidden mutation: upsert");
+          },
+          insert() {
+            throw new Error("forbidden mutation: insert");
+          },
+        };
+        return builder;
+      },
+    };
+
+    const result = await computeMissingCandidates(
+      // deno-lint-ignore no-explicit-any
+      client as any,
+      { categories: [], offers: [] },
+      3,
+    );
+
+    assertEquals(result.active_products_with_tilda_uid_in_db, 1850);
+    assertEquals(result.absent_from_current_yml, 1850);
+    assertEquals(result.sample.length, 3);
+    assertEquals(result.action_taken, "none");
+    assert(ranges.length > 1);
+    for (const [from, to] of ranges) {
+      assert(to - from + 1 <= MISSING_CANDIDATES_PAGE_SIZE);
+    }
+    const seen = ranges.reduce((n, [from, to]) => {
+      return n + rows.slice(from, to + 1).length;
+    }, 0);
+    assertEquals(seen, rows.length);
+  },
+);
+
+Deno.test(
+  "missing-candidates rejects a short page that is not the full count",
+  async () => {
+    const rows: StubRow[] = Array.from({ length: 1850 }, (_, i) => ({
+      tilda_uid: `p-${i}`,
+    }));
+    const client = {
+      from() {
+        const builder = {
+          select() {
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          not() {
+            return builder;
+          },
+          range() {
+            return Promise.resolve({
+              data: rows.slice(0, 100),
+              error: null,
+              count: rows.length,
+            });
+          },
+        };
+        return builder;
+      },
+    };
+
+    await assertRejects(
+      () =>
+        computeMissingCandidates(
+          // deno-lint-ignore no-explicit-any
+          client as any,
+          { categories: [], offers: [] },
+          5,
+        ),
+      Error,
+      "truncated",
     );
   },
 );

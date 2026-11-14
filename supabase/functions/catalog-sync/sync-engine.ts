@@ -11,6 +11,13 @@ import type {
 } from "./types.ts";
 import { buildCategoryLookup } from "./yml-parser.ts";
 
+/**
+ * Variant and image upserts do not read returned ids. Product upserts do:
+ * PostgREST `db-max-rows` defaults to 1000 and truncates `.select()` even
+ * when the write itself stored every row. Product batches stay under that
+ * cap so every id comes back. Do not raise the project max-rows setting.
+ */
+export const PRODUCT_ID_BATCH = 500;
 const BODY_BATCH = 2000;
 const URL_BATCH = 200;
 
@@ -136,8 +143,8 @@ async function upsertPhases1to3(
 
   const productIdMap = new Map<string, string>();
 
-  for (let i = 0; i < productRows.length; i += BODY_BATCH) {
-    const batch = productRows.slice(i, i + BODY_BATCH);
+  for (let i = 0; i < productRows.length; i += PRODUCT_ID_BATCH) {
+    const batch = productRows.slice(i, i + PRODUCT_ID_BATCH);
     const { data, error } = await client
       .from("products")
       .upsert(batch, { onConflict: "tilda_uid" })
@@ -158,19 +165,11 @@ async function upsertPhases1to3(
             details: { code: (rowErr as unknown as { code?: string }).code },
           });
         } else {
-          stats.products_upserted++;
-          if (rowData?.[0]) {
-            productIdMap.set(rowData[0].tilda_uid, String(rowData[0].id));
-          }
+          absorbProductIds([row], rowData, productIdMap, stats, errors);
         }
       }
     } else {
-      stats.products_upserted += batch.length;
-      if (data) {
-        for (const row of data) {
-          productIdMap.set(row.tilda_uid, String(row.id));
-        }
-      }
+      absorbProductIds(batch, data, productIdMap, stats, errors);
     }
   }
 
@@ -228,6 +227,7 @@ async function upsertPhases1to3(
             product_id: resolvedProductId,
             url,
             position: pos,
+            source: "yml_variant",
           });
           pos++;
         }
@@ -288,6 +288,47 @@ async function upsertPhases1to3(
   }
 
   return { stats, errors, seenTildaUids };
+}
+
+/**
+ * Maps returned product ids back onto the batch that was written.
+ * A short `.select()` is a truncated PostgREST response, not success:
+ * only rows with an id are counted, and every missing id is an error
+ * so later variants are not attached to the wrong product.
+ */
+function absorbProductIds(
+  batch: ProductRow[],
+  data: { id?: unknown; tilda_uid?: string }[] | null,
+  productIdMap: Map<string, string>,
+  stats: SyncStats,
+  errors: SyncError[],
+): void {
+  const returned = new Map<string, string>();
+  const rows = Array.isArray(data) ? data : [];
+  for (const row of rows) {
+    if (
+      !row?.tilda_uid || row.id === undefined || row.id === null ||
+      row.id === ""
+    ) {
+      continue;
+    }
+    returned.set(String(row.tilda_uid), String(row.id));
+  }
+
+  for (const row of batch) {
+    const id = returned.get(row.tilda_uid);
+    if (!id) {
+      errors.push({
+        stage: "upsert_product_id_truncated",
+        external_key: row.tilda_uid,
+        message:
+          `Product upsert returned ${rows.length}/${batch.length} rows; no id for tilda_uid=${row.tilda_uid}`,
+      });
+      continue;
+    }
+    productIdMap.set(row.tilda_uid, id);
+    stats.products_upserted++;
+  }
 }
 
 

@@ -10,5 +10,13 @@ verify_jwt = true
 [functions.catalog-yml-sync-safe]
 verify_jwt = true
 
+# Opt-in gallery recovery. Live mode is explicit, admin-only, and not scheduled.
+[functions.catalog-gallery-recover]
+verify_jwt = true
+
+# Gallery queue. Inspection is the default work. Live requires authorize_live.
+[functions.catalog-gallery-queue]
+verify_jwt = true
+
 [functions.catalog-yml-import-manual]
 verify_jwt = true

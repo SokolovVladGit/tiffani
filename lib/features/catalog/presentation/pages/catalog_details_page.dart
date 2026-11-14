@@ -12,7 +12,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/utils/product_trust_helpers.dart';
-import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../../../core/widgets/sticky_cta_bar.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../../cart/domain/entities/cart_item_from_catalog.dart';
@@ -22,9 +21,11 @@ import '../../../recently_viewed/domain/entities/recently_viewed_item.dart';
 import '../../../recently_viewed/presentation/cubit/recently_viewed_cubit.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import '../../domain/entities/product_image_entity.dart';
+import '../../domain/gallery/catalog_gallery.dart';
 import '../cubit/product_images_cubit.dart';
 import '../cubit/product_images_state.dart';
 import '../cubit/similar_products_cubit.dart';
+import '../widgets/catalog_gallery_view.dart';
 import '../widgets/similar_products_section.dart';
 
 class CatalogDetailsPage extends StatefulWidget {
@@ -410,15 +411,18 @@ class _HeroSectionState extends State<_HeroSection> {
 
     return BlocBuilder<ProductImagesCubit, ProductImagesState>(
       builder: (context, imagesState) {
-        final images = imagesState.images;
+        final loadedImages = imagesState.status == ProductImagesStatus.success
+            ? imagesState.images
+            : const <ProductImageEntity>[];
+        final displayUrls = composeCatalogGallery(
+          variantPhotoUrl: widget.item.imageUrl,
+          images: loadedImages,
+          isTildaProduct: widget.item.isTildaImported,
+        );
         final safeIndex =
-            _selectedIndex < images.length ? _selectedIndex : 0;
-
-        String? displayUrl;
-        if (images.isNotEmpty) {
-          displayUrl = images[safeIndex].url;
-        }
-        displayUrl ??= widget.item.imageUrl;
+            _selectedIndex < displayUrls.length ? _selectedIndex : 0;
+        final displayUrl =
+            displayUrls.isEmpty ? null : displayUrls[safeIndex];
 
         final useHero = widget.heroTag != null && safeIndex == 0;
 
@@ -426,7 +430,10 @@ class _HeroSectionState extends State<_HeroSection> {
           duration: const Duration(milliseconds: 200),
           child: KeyedSubtree(
             key: ValueKey(displayUrl ?? ''),
-            child: _buildMainImage(displayUrl, imageHeight),
+            child: CatalogGalleryMainImage(
+              url: displayUrl,
+              height: imageHeight,
+            ),
           ),
         );
 
@@ -479,124 +486,21 @@ class _HeroSectionState extends State<_HeroSection> {
                 ],
               ),
             ),
-            if (images.length > 1)
-              _ThumbnailStrip(
-                images: images,
-                selectedIndex: safeIndex,
-                onSelected: (index) {
-                  if (index != _selectedIndex) {
-                    setState(() => _selectedIndex = index);
-                  }
-                },
-              ),
+            CatalogGalleryThumbnails(
+              urls: displayUrls,
+              selectedIndex: safeIndex,
+              onSelected: (index) {
+                if (index != _selectedIndex) {
+                  setState(() => _selectedIndex = index);
+                }
+              },
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildMainImage(String? url, double imageHeight) {
-    if (url != null && url.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: url,
-        width: double.infinity,
-        height: imageHeight,
-        fit: BoxFit.contain,
-        placeholder: (_, _) => SizedBox(
-          width: double.infinity,
-          height: imageHeight,
-        ),
-        errorWidget: (_, _, _) => AppImagePlaceholder(
-          width: double.infinity,
-          height: imageHeight,
-          iconSize: 48,
-        ),
-      );
-    }
-    return AppImagePlaceholder(
-      width: double.infinity,
-      height: imageHeight,
-      iconSize: 48,
-    );
-  }
-}
-
-class _ThumbnailStrip extends StatelessWidget {
-  final List<ProductImageEntity> images;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _ThumbnailStrip({
-    required this.images,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  static const double _size = 48;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.only(
-        top: AppSpacing.sm,
-        bottom: AppSpacing.md,
-      ),
-      child: SizedBox(
-        height: _size + 4,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          itemCount: images.length,
-          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-          itemBuilder: (context, index) {
-            final isSelected = index == selectedIndex;
-            return GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedScale(
-                scale: isSelected ? 1.04 : 1.0,
-                duration: const Duration(milliseconds: 180),
-                child: AnimatedOpacity(
-                  opacity: isSelected ? 1.0 : 0.65,
-                  duration: const Duration(milliseconds: 180),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                  width: _size,
-                  height: _size,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.seed.withValues(alpha: 0.4)
-                          : Colors.transparent,
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.sm - 1),
-                    child: CachedNetworkImage(
-                      imageUrl: images[index].url,
-                      width: _size,
-                      height: _size,
-                      fit: BoxFit.contain,
-                      placeholder: (_, _) => const SizedBox.shrink(),
-                      errorWidget: (_, _, _) => AppImagePlaceholder(
-                        width: _size,
-                        height: _size,
-                      ),
-                    ),
-                  ),
-                ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
 }
 
 class _HeroIconButton extends StatelessWidget {

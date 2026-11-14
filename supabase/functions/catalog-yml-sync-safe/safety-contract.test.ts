@@ -92,7 +92,30 @@ const SAFE_SYNC_FILES = [
   "config.ts",
   "run-logger.ts",
   "missing-candidates.ts",
+  "auth.ts",
+  "yml-guard.ts",
 ];
+
+Deno.test(
+  "safe sync source: no gallery page fetch and no legacy enrichGallery",
+  async () => {
+    for (const file of SAFE_SYNC_FILES) {
+      const src = await readSource(file);
+      assert(
+        !src.includes("enrichGallery"),
+        `${file} must not call enrichGallery`,
+      );
+      assert(
+        !src.includes("catalog-gallery-recover"),
+        `${file} must not import catalog-gallery-recover`,
+      );
+      assert(
+        !src.includes("tilda_gallery"),
+        `${file} must not write supplementary gallery rows`,
+      );
+    }
+  },
+);
 
 Deno.test("safe sync source: no syncCatalog import or call", async () => {
   for (const file of SAFE_SYNC_FILES) {
@@ -184,6 +207,17 @@ Deno.test(
       src.includes('.not("tilda_uid", "is", null)'),
       "missing-candidates must exclude rows where tilda_uid IS NULL",
     );
+  },
+);
+
+Deno.test(
+  "index.ts: authorizes before sync logs and YML fetch",
+  async () => {
+    const src = await readSource("index.ts");
+    const authAt = src.indexOf("const auth = await authorize(req, source)");
+    const runAt = src.indexOf("await createSafeSyncRun");
+    const fetchAt = src.indexOf("await fetchYml");
+    assert(authAt > 0 && runAt > authAt && fetchAt > authAt);
   },
 );
 

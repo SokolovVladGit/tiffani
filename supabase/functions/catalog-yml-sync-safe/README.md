@@ -4,6 +4,27 @@ Safe automatic Tilda YML sync for the TIFFANI catalog. Pulls the full
 YML feed, parses it, and upserts products / variants / images via the
 already-safe `upsertCatalogSlice` path.
 
+## Authorization
+
+`verify_jwt = true` is not enough. The function rejects the request
+before it creates a sync log, fetches YML, or writes anything unless
+the bearer token is exactly `SUPABASE_SERVICE_ROLE_KEY`, or it is a
+user JWT whose `is_admin()` check succeeds.
+
+`source=cron` is accepted only from that service-role secret. An admin
+JWT with `source=cron` is rejected. Anonymous keys, ordinary users, and
+invalid tokens are rejected. The service-role secret is not returned.
+
+## First import
+
+The hosted project starts empty. Deploy this function only, set
+`TILDA_YML_URL` to the permanent HTTPS feed on `tiffani.md`, and call
+it once with `{"dry_run":true}` and the service-role bearer. Confirm
+`products_upserted`, `variants_upserted`, and `images_upserted` are 0
+and the catalog tables are still empty. Then call
+`{"dry_run":false,"source":"manual"}` with the same bearer. Do not
+schedule cron in that step, and do not deploy `catalog-sync`.
+
 ## Status
 
 Production path for scheduled sync. **pg_cron** should call
