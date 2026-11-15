@@ -10,9 +10,6 @@ class RequestItemPayloadDto {
   });
 
   Map<String, dynamic> toMap() {
-    return {
-      'variant_id': variantId,
-      'quantity': quantity,
-    };
+    return {'variant_id': variantId, 'quantity': quantity};
   }
 }

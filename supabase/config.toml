@@ -1,3 +1,5 @@
+# pg_net has no user JWT. The function rejects every request that does not
+# present ORDER_NOTIFY_WORKER_SECRET before it reads an order.
 [functions.order-notify]
 verify_jwt = false
 

@@ -25,10 +25,7 @@ class CheckoutDraftEntity {
   /// to collapse a "cleared" draft into storage removal instead of an empty
   /// JSON payload.
   bool get isEmpty =>
-      _blank(name) &&
-      _blank(phone) &&
-      _blank(email) &&
-      _blank(loyaltyCard);
+      _blank(name) && _blank(phone) && _blank(email) && _blank(loyaltyCard);
 
   /// Returns a copy with trimmed strings; empty/whitespace-only strings
   /// collapse to `null`. `updatedAt` is preserved.

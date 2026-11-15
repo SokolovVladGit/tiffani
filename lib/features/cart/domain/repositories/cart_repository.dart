@@ -24,11 +24,19 @@ abstract interface class CartRepository {
     required List<CartItemEntity> items,
   });
 
-  /// Submits via `submit_order_v3` (or `submit_order_v2` when the discount
+  /// Submits via `submit_order_v4` (or `submit_order_v2` when the discount
   /// pricing flag is off). Throws [OrderSubmissionException] for
-  /// user-correctable backend failures.
+  /// user-correctable backend failures. A lost v4 response is retried with
+  /// the same request id.
   Future<OrderResultEntity> submitOrderRequest({
     required RequestFormEntity form,
     required List<CartItemEntity> items,
   });
+
+  /// Resends the unresolved checkout payload stored before the last attempt.
+  Future<OrderResultEntity> retryPendingOrder();
+
+  Future<void> discardPendingOrder();
+
+  Future<bool> hasPendingOrder();
 }

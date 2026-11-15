@@ -22,6 +22,7 @@ import '../../domain/entities/payment_option.dart';
 import '../../domain/entities/pickup_store.dart';
 import '../../domain/entities/request_form_entity.dart';
 import '../../domain/repositories/checkout_draft_repository.dart';
+import '../checkout_contact.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 
@@ -63,12 +64,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
     // Local draft fills in any field left blank by auth/profile prefill.
     // Fires-and-forgets; auth prefill always wins where it had data.
     _loadCheckoutDraft();
-    if (DiscountPricingConfig.useDiscountPricingV1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await context.read<CartCubit>().promptUnresolvedCheckout();
+      if (!mounted) return;
+      if (DiscountPricingConfig.useDiscountPricingV1) {
         _runQuote(silent: true);
-      });
-    }
+      }
+    });
   }
 
   @override
@@ -102,9 +105,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     if (_nameCtrl.text.isEmpty && auth.profile?.name != null) {
       _nameCtrl.text = auth.profile!.name!;
     }
-    if (_phoneCtrl.text.isEmpty && auth.profile?.phone != null) {
-      _phoneCtrl.text = auth.profile!.phone!;
-    }
+    _phoneCtrl.text = fillCheckoutField(_phoneCtrl.text, auth.profile?.phone);
     if (_emailCtrl.text.isEmpty && auth.email != null) {
       _emailCtrl.text = auth.email!;
     }
@@ -134,8 +135,9 @@ class _CheckoutPageState extends State<CheckoutPage> {
       _nameCtrl.text = draft.name!;
       changed = true;
     }
-    if (_phoneCtrl.text.isEmpty && (draft.phone ?? '').isNotEmpty) {
-      _phoneCtrl.text = draft.phone!;
+    final draftPhone = fillCheckoutField(_phoneCtrl.text, draft.phone);
+    if (draftPhone != _phoneCtrl.text) {
+      _phoneCtrl.text = draftPhone;
       changed = true;
     }
     if (_emailCtrl.text.isEmpty && (draft.email ?? '').isNotEmpty) {
@@ -282,94 +284,141 @@ class _CheckoutPageState extends State<CheckoutPage> {
     // both `context` here and the State's own `context` (used in initState
     // and post-frame callbacks for _runQuote) can resolve it.
     return BlocListener<CartCubit, CartState>(
-        listenWhen: (prev, curr) =>
-            prev.submissionSuccess != curr.submissionSuccess ||
-            (prev.isSubmitting &&
-                !curr.isSubmitting &&
-                curr.errorMessage != null),
-        listener: (context, state) {
-          if (state.submissionSuccess) {
-            // Fire-and-forget; success navigation must not wait on local
-            // storage.
-            unawaited(_saveCheckoutDraft());
-            context.go(RouteNames.requestSuccess);
-          } else if (!state.isSubmitting && state.errorMessage != null) {
-            ScaffoldMessenger.of(context)
-              ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(
-                  content: Text(
-                      state.errorMessage ?? 'Не удалось отправить заявку'),
+      listenWhen: (prev, curr) =>
+          prev.submissionSuccess != curr.submissionSuccess ||
+          prev.pendingConflict != curr.pendingConflict ||
+          (prev.isSubmitting &&
+              !curr.isSubmitting &&
+              curr.errorMessage != null),
+      listener: (context, state) async {
+        final cubit = context.read<CartCubit>();
+        if (state.pendingConflict) {
+          final retry = await showDialog<bool>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Прошлая попытка'),
+              content: const Text(
+                'Предыдущая попытка могла уже создать заказ. '
+                'Повторите её с теми же данными. Другой заказ можно '
+                'отправить только если сервер подтвердит, что этот не создан.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Закрыть'),
                 ),
-              );
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Повторить'),
+                ),
+              ],
+            ),
+          );
+          if (!context.mounted) return;
+          cubit.acknowledgePendingConflict();
+          if (retry == true) {
+            await cubit.retryPendingOrder();
           }
-        },
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          body: Stack(
-            children: [
-              Positioned.fill(
-                child: Image.asset(
-                  'assets/images/home/order_bg.jpg',
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Form(
-                key: _formKey,
-                child: ListView(
-                  padding: EdgeInsets.only(
-                    top: topInset + kToolbarHeight + AppSpacing.lg,
-                    bottom: 140,
-                  ),
-                  children: [
-                    _buildOrderSummary(),
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildContactSection(),
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildPromoAndLoyaltySection(),
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildFulfillmentSection(),
-                    if (DiscountPricingConfig.useDiscountPricingV1) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      _buildPriceBreakdownSection(),
-                    ],
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildSectionCard(
-                      title: 'Способ оплаты',
-                      children: [
-                        ...PaymentOption.values.map(
-                          (o) => _SelectionCard(
-                            label: o.label,
-                            subtitle: o.subtitle,
-                            selected: _payment == o,
-                            onTap: () => setState(() => _payment = o),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    _buildSectionCard(
-                      title: 'Комментарий к заказу',
-                      children: [
-                        _buildField(
-                          controller: _commentCtrl,
-                          hint: 'Ваш комментарий (необязательно)',
-                          maxLines: 3,
-                          action: TextInputAction.done,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildConsentRow(),
-                  ],
-                ),
-              ),
-              _buildFloatingHeader(topInset),
-              _buildBottomCta(bottomInset),
-            ],
+          return;
+        }
+        if (state.submissionSuccess) {
+          // Fire-and-forget; success navigation must not wait on local
+          // storage.
+          unawaited(_saveCheckoutDraft());
+        }
+        if (!context.mounted) return;
+        await completeCheckoutSideEffects(
+          orderSucceeded: state.submissionSuccess,
+          persistPhone: () => persistPhoneAfterOrder(
+            orderSucceeded: true,
+            phone: _phoneCtrl.text,
+            persist: sl<AuthCubit>().syncSubmittedPhone,
           ),
+          showSuccess: () {
+            if (context.mounted) context.go(RouteNames.requestSuccess);
+          },
+        );
+        if (!context.mounted) return;
+        if (!state.submissionSuccess &&
+            !state.isSubmitting &&
+            state.errorMessage != null) {
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.errorMessage ?? 'Не удалось отправить заявку',
+                ),
+              ),
+            );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: Image.asset(
+                'assets/images/home/order_bg.jpg',
+                fit: BoxFit.cover,
+              ),
+            ),
+            Form(
+              key: _formKey,
+              child: ListView(
+                padding: EdgeInsets.only(
+                  top: topInset + kToolbarHeight + AppSpacing.lg,
+                  bottom: 140,
+                ),
+                children: [
+                  _buildOrderSummary(),
+                  const SizedBox(height: AppSpacing.xs),
+                  _buildContactSection(),
+                  const SizedBox(height: AppSpacing.xs),
+                  _buildPromoAndLoyaltySection(),
+                  const SizedBox(height: AppSpacing.xs),
+                  _buildFulfillmentSection(),
+                  if (DiscountPricingConfig.useDiscountPricingV1) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    _buildPriceBreakdownSection(),
+                  ],
+                  const SizedBox(height: AppSpacing.xs),
+                  _buildSectionCard(
+                    title: 'Способ оплаты',
+                    children: [
+                      ...PaymentOption.values.map(
+                        (o) => _SelectionCard(
+                          label: o.label,
+                          subtitle: o.subtitle,
+                          selected: _payment == o,
+                          onTap: () => setState(() => _payment = o),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _buildSectionCard(
+                    title: 'Комментарий к заказу',
+                    children: [
+                      _buildField(
+                        controller: _commentCtrl,
+                        hint: 'Ваш комментарий (необязательно)',
+                        maxLines: 3,
+                        action: TextInputAction.done,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  _buildConsentRow(),
+                ],
+              ),
+            ),
+            _buildFloatingHeader(topInset),
+            _buildBottomCta(bottomInset),
+          ],
         ),
-      );
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -388,11 +437,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             stops: [0.0, 0.55, 1.0],
-            colors: [
-              Color(0xCCF5F5F5),
-              Color(0x88F5F5F5),
-              Color(0x00F5F5F5),
-            ],
+            colors: [Color(0xCCF5F5F5), Color(0x88F5F5F5), Color(0x00F5F5F5)],
           ),
         ),
         child: SizedBox(
@@ -434,8 +479,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       left: 0,
       right: 0,
       child: BlocBuilder<CartCubit, CartState>(
-        buildWhen: (prev, curr) =>
-            prev.isSubmitting != curr.isSubmitting,
+        buildWhen: (prev, curr) => prev.isSubmitting != curr.isSubmitting,
         builder: (context, state) {
           return Container(
             decoration: const BoxDecoration(
@@ -615,11 +659,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: const [
-        Icon(
-          Icons.info_outline,
-          size: 14,
-          color: AppColors.textTertiary,
-        ),
+        Icon(Icons.info_outline, size: 14, color: AppColors.textTertiary),
         SizedBox(width: AppSpacing.xs),
         Expanded(
           child: Text(
@@ -889,7 +929,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
           style: TextStyle(
             fontSize: bold ? 17 : 13,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-            color: valueColor ??
+            color:
+                valueColor ??
                 (bold ? AppColors.textPrimary : AppColors.textSecondary),
           ),
         ),
@@ -961,9 +1002,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
     return _buildSectionCard(
       title: 'Способ получения',
       children: [
-        _buildCheckoutInfoHint(
-          'При заказе от 1000 ₽ доставка бесплатная',
-        ),
+        _buildCheckoutInfoHint('При заказе от 1000 ₽ доставка бесплатная'),
         const SizedBox(height: AppSpacing.sm),
         ...FulfillmentOption.values.map(
           (o) => _SelectionCard(
@@ -1021,42 +1060,26 @@ class _CheckoutPageState extends State<CheckoutPage> {
   // ---------------------------------------------------------------------------
 
   static BoxDecoration _summaryDecoration() => BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: AppColors.border.withValues(alpha: 0.45),
-          width: 0.5,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0C000000),
-            blurRadius: 16,
-            offset: Offset(0, 3),
-          ),
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      );
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(AppRadius.xl),
+    border: Border.all(
+      color: AppColors.border.withValues(alpha: 0.45),
+      width: 0.5,
+    ),
+    boxShadow: const [
+      BoxShadow(color: Color(0x0C000000), blurRadius: 16, offset: Offset(0, 3)),
+      BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 1)),
+    ],
+  );
 
   static BoxDecoration _sectionDecoration() => BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-          BoxShadow(
-            color: Color(0x04000000),
-            blurRadius: 4,
-            offset: Offset(0, 1),
-          ),
-        ],
-      );
+    color: AppColors.surface,
+    borderRadius: BorderRadius.circular(AppRadius.xl),
+    boxShadow: const [
+      BoxShadow(color: Color(0x08000000), blurRadius: 12, offset: Offset(0, 2)),
+      BoxShadow(color: Color(0x04000000), blurRadius: 4, offset: Offset(0, 1)),
+    ],
+  );
 
   Widget _buildSectionCard({
     required String title,
@@ -1152,18 +1175,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
     );
   }
 
-  static final _phonePattern = RegExp(r'^[\d\s\+\-\(\)]{7,20}$');
   static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
   FormFieldValidator<String> _requiredValidator(String message) {
     return (v) => (v == null || v.trim().isEmpty) ? message : null;
   }
 
-  String? _phoneValidator(String? v) {
-    if (v == null || v.trim().isEmpty) return 'Укажите телефон';
-    if (!_phonePattern.hasMatch(v.trim())) return 'Некорректный номер телефона';
-    return null;
-  }
+  String? _phoneValidator(String? v) => validateCheckoutPhone(v);
 
   String? _emailValidator(String? v) {
     if (v == null || v.trim().isEmpty) return null;
@@ -1178,7 +1196,10 @@ class _CheckoutPageState extends State<CheckoutPage> {
   Widget _buildConsentRow() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 0,
+        AppSpacing.lg,
+        AppSpacing.sm,
+        AppSpacing.lg,
+        0,
       ),
       child: GestureDetector(
         onTap: () => setState(() => _consent = !_consent),
@@ -1201,7 +1222,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   ),
                 ),
                 child: _consent
-                    ? const Icon(Icons.check_rounded, size: 16, color: Colors.white)
+                    ? const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: Colors.white,
+                      )
                     : null,
               ),
             ),
@@ -1257,9 +1282,10 @@ class _SelectionCardState extends State<_SelectionCard>
       duration: const Duration(milliseconds: 120),
       reverseDuration: const Duration(milliseconds: 180),
     );
-    _scale = Tween(begin: 1.0, end: 0.975).animate(
-      CurvedAnimation(parent: _tapCtrl, curve: Curves.easeInOut),
-    );
+    _scale = Tween(
+      begin: 1.0,
+      end: 0.975,
+    ).animate(CurvedAnimation(parent: _tapCtrl, curve: Curves.easeInOut));
   }
 
   @override

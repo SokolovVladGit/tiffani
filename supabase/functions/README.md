@@ -73,26 +73,48 @@ Both notification functions read four environment variables (see each
 | `SUPABASE_SERVICE_ROLE_KEY`   | Supabase platform        | Auto-set; gives the function row-level access for read-back. |
 | `TELEGRAM_BOT_TOKEN`          | Operator (`secrets set`) | Shared by `order-notify` and `consultation-notify`. |
 | `TELEGRAM_CHAT_ID`            | Operator (`secrets set`) | Shared by `order-notify` and `consultation-notify`. |
+| `ORDER_NOTIFY_WORKER_SECRET`  | Operator (`secrets set`) | `order-notify` only. At least 32 characters. The same name is stored in Vault for the schedule. Not a Flutter secret. |
 
-```bash
-supabase secrets set TELEGRAM_BOT_TOKEN=...     --project-ref <ref>
-supabase secrets set TELEGRAM_CHAT_ID=...       --project-ref <ref>
-supabase secrets list                            --project-ref <ref>
-```
+Telegram destination for `mnjxcoyvomgbdtwdhejq` is not stored in git.
+
+Local file, gitignored:
+
+`supabase/.env.telegram.local`
+
+Live values:
+
+Supabase Dashboard → Edge Functions → Secrets
+
+Changing the local file does not update hosted Supabase. No Flutter rebuild is required. Never commit real credentials.
+
+Switch from the test bot to the production bot:
+
+1. Open `supabase/.env.telegram.local`.
+2. Replace `TELEGRAM_BOT_TOKEN`.
+3. Replace `TELEGRAM_CHAT_ID`.
+4. Save the file.
+5. Run `scripts/sync-telegram-secrets.sh`.
+6. Confirm the command prints `synchronized TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID` and `supabase secrets list --project-ref mnjxcoyvomgbdtwdhejq` shows both names. Do not print the values.
+
+The placeholder template is `supabase/.env.telegram.example`. `ORDER_NOTIFY_WORKER_SECRET` is not part of that file.
 
 ---
 
 ## Per-function status
 
 ### `order-notify`
-- Triggered fire-and-forget by `CartRemoteDataSourceImpl._notifyOrder` after a
-  successful `submit_order_v2` RPC.
-- Reads the order row + items from `order_requests` / `order_request_items`
-  using the service role key (DB is authoritative for the message body).
-- Sends a Telegram message; failure is logged client-side at warn level only,
-  never blocks the order.
-- **Must be deployed with `verify_jwt = false`** (already pinned in
-  `config.toml`).
+- Not called by Flutter. `submit_order_v3` inserts `order_requests`, and the
+  database trigger enqueues `private.order_notification_jobs` in that same
+  transaction.
+- The scheduled caller posts with `Authorization: Bearer <ORDER_NOTIFY_WORKER_SECRET>`.
+  A missing or wrong secret is rejected before any order row is read. A body
+  `order_id` does not choose which order is sent.
+- Reads the claimed order and its items with the service role key.
+- Telegram failure is recorded on the job. It does not fail checkout.
+- **Deploy with `verify_jwt = false`** (pinned in `config.toml`) because
+  `pg_net` has no user JWT. The worker secret is the authorization check.
+- Do not enable the schedule until the migration, the function, and the secret
+  are in place. The schedule SQL is `supabase/deploy/pending/order_notify_schedule.sql`.
 
 ### `consultation-notify`
 - Triggered fire-and-forget by `ConsultationRemoteDataSourceImpl._notifyConsultation`

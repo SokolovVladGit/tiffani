@@ -5,6 +5,9 @@
 failed_uids.txt
 .env
 .env.*
+# Real Telegram destination. The example file stays trackable.
+supabase/.env.telegram.local
+!supabase/.env.telegram.example
 
 # Miscellaneous
 *.class

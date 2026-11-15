@@ -5,4 +5,5 @@ class StorageKeys {
   static const favoriteItemIds = 'favorite_item_ids';
   static const recentlyViewedItems = 'recently_viewed_items';
   static const checkoutDraftV1 = 'checkout_draft_v1';
+  static const pendingCheckoutV1 = 'pending_checkout_v1';
 }

@@ -42,8 +42,9 @@ class OrderQuoteDto {
 
     final promo = _asMapOrNull(m['promo']);
     final promoStatus = promo == null ? null : _asStringOrNull(promo['status']);
-    final promoMessage =
-        promo == null ? null : _asStringOrNull(promo['message']);
+    final promoMessage = promo == null
+        ? null
+        : _asStringOrNull(promo['message']);
 
     return OrderQuoteEntity(
       ok: true,
@@ -112,16 +113,19 @@ class OrderQuoteDto {
   // unknown.
   // ---------------------------------------------------------------------------
 
-  static String localizeErrorCode(
-    String code, {
-    String? backendMessage,
-  }) {
+  static String localizeErrorCode(String code, {String? backendMessage}) {
     switch (code) {
       // Customer/order validation (mirrors submit_order_v3)
       case 'missing_name':
         return 'Укажите имя';
       case 'missing_phone':
         return 'Укажите телефон';
+      case 'invalid_phone':
+        return 'Некорректный номер телефона';
+      case 'request_payload_conflict':
+        return 'Данные заказа изменились. Оформите заказ заново.';
+      case 'request_forbidden':
+        return 'Этот запрос уже использован. Оформите заказ заново.';
       case 'missing_consent':
       case 'consent_required':
         return 'Необходимо согласие на обработку данных';
@@ -186,10 +190,7 @@ class OrderQuoteDto {
 
   /// Convenience: pre-formatted user-facing line for the quote's promo
   /// status field (used under the promo input).
-  static String? humanizePromoStatus(
-    String? status, {
-    String? promoMessage,
-  }) {
+  static String? humanizePromoStatus(String? status, {String? promoMessage}) {
     if (status == null || status.isEmpty) return null;
     switch (status) {
       case 'applied':
@@ -228,11 +229,13 @@ class OrderQuoteDto {
       final em = e.cast<String, dynamic>();
       final code = _asStringOrNull(em['code']);
       if (code == null || code.isEmpty) continue;
-      out.add(OrderQuoteErrorEntity(
-        code: code,
-        message: _asStringOrNull(em['message']) ?? code,
-        variantId: _asStringOrNull(em['variant_id']),
-      ));
+      out.add(
+        OrderQuoteErrorEntity(
+          code: code,
+          message: _asStringOrNull(em['message']) ?? code,
+          variantId: _asStringOrNull(em['variant_id']),
+        ),
+      );
     }
     return out;
   }
@@ -252,9 +255,11 @@ class OrderQuoteDto {
       final percentText = percent == null ? '' : ' (-${_fmtPercent(percent)}%)';
       if (kind == 'promocode') {
         final visibleCode = code ?? name ?? '';
-        out.add(visibleCode.isEmpty
-            ? 'Промокод применён$percentText'
-            : 'Промокод применён: $visibleCode$percentText');
+        out.add(
+          visibleCode.isEmpty
+              ? 'Промокод применён$percentText'
+              : 'Промокод применён: $visibleCode$percentText',
+        );
       } else {
         final label = name ?? code ?? 'Скидка';
         out.add('Скидка: $label$percentText');

@@ -10,14 +10,8 @@ class PickupStore {
   const PickupStore({required this.id, required this.label});
 
   static const List<PickupStore> all = [
-    PickupStore(
-      id: 'store_central',
-      label: 'Тирасполь, ул. 25 Октября 94',
-    ),
-    PickupStore(
-      id: 'store_balka',
-      label: 'Тирасполь, ул. Юности 18/1',
-    ),
+    PickupStore(id: 'store_central', label: 'Тирасполь, ул. 25 Октября 94'),
+    PickupStore(id: 'store_balka', label: 'Тирасполь, ул. Юности 18/1'),
     PickupStore(
       id: 'store_bendery',
       label: 'Бендеры, ул. Ленина 15, ТЦ «Пассаж» бутик №14',

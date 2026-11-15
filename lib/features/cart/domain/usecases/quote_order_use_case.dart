@@ -10,6 +10,5 @@ class QuoteOrderUseCase {
   Future<OrderQuoteEntity> call({
     required RequestFormEntity form,
     required List<CartItemEntity> items,
-  }) =>
-      _repository.quoteOrder(form: form, items: items);
+  }) => _repository.quoteOrder(form: form, items: items);
 }

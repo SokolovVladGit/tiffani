@@ -107,9 +107,7 @@ void main() {
     });
 
     test('fromJson coerces non-string scalars into strings', () {
-      final decoded = CheckoutDraftEntity.fromJson({
-        'loyalty_card': 42,
-      });
+      final decoded = CheckoutDraftEntity.fromJson({'loyalty_card': 42});
 
       expect(decoded.loyaltyCard, '42');
     });

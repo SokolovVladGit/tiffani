@@ -1,30 +1,22 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   buildMessage,
   type OrderItem,
   type OrderRequest,
 } from "./render.ts";
+import {
+  bearerMatches,
+  classifyTelegramHttp,
+  dispatchLimit,
+  orderMissingFailure,
+  transportFailure,
+  WORKER_SECRET_NAME,
+  type DeliveryFailure,
+} from "./worker.ts";
 
-// ============================================================================
-// order-notify Edge Function — Phase 3 (discount-aware).
-//
-// The handler is intentionally thin: validate input, fetch the order +
-// items including Phase 1 snapshot columns, hand off to the pure render
-// module, and POST the resulting HTML to Telegram.
-//
-// Old v2 orders (pre-Phase 1 columns are NULL) keep the prior message
-// shape exactly. v3 orders with discount_amount > 0 get a discount-aware
-// money block + "Применённые скидки" identity block. See render.ts.
-//
-// Telegram is never source of truth: this function ONLY renders persisted
-// order snapshot fields and never recomputes which discounts apply.
-// ============================================================================
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Server-side worker. pg_net calls this with ORDER_NOTIFY_WORKER_SECRET.
+// verify_jwt is false because that caller has no user JWT. The secret is
+// checked before any order row is read. The body cannot choose an order.
 
 const ORDER_SELECT = [
   "id",
@@ -49,7 +41,6 @@ const ORDER_SELECT = [
   "status",
   "source",
   "created_at",
-  // Phase 1 additive snapshot columns (NULL on old v2 orders).
   "subtotal_amount",
   "discount_amount",
   "grand_total_amount",
@@ -68,7 +59,6 @@ const ITEM_SELECT = [
   "line_total",
   "edition",
   "modification",
-  // Phase 1 additive per-line snapshot columns (NULL on old v2 orders).
   "unit_price_amount",
   "line_subtotal_amount",
   "line_discount_amount",
@@ -76,96 +66,184 @@ const ITEM_SELECT = [
   "applied_discount_snapshot",
 ].join(", ");
 
+type ClaimedJob = {
+  job_id: string;
+  order_id: string;
+  attempts: number;
+};
+
+type QueryResult = { data: unknown; error: { message?: string } | null };
+
+type OrderQuery = {
+  eq(column: string, value: string): {
+    maybeSingle(): Promise<QueryResult>;
+    order(column: string, options: { ascending: boolean }): Promise<QueryResult>;
+  };
+};
+
+// Untyped supabase-js treats unknown RPCs as no-arg. These three functions
+// are created by the outbox migration and are not in a generated Database type.
+type WorkerDb = {
+  rpc(fn: string, args?: Record<string, unknown>): Promise<QueryResult>;
+  from(relation: string): { select(columns: string): OrderQuery };
+};
+
+function workerDb(url: string, key: string): WorkerDb {
+  const client: SupabaseClient = createClient(url, key, {
+    auth: { persistSession: false },
+  });
+  return client as unknown as WorkerDb;
+}
+
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return json("ok", 200);
+  if (req.method !== "POST") {
+    return json({ error: "method_not_allowed" }, 405);
+  }
+
+  const secret = Deno.env.get(WORKER_SECRET_NAME);
+  if (!bearerMatches(req.headers.get("Authorization"), secret)) {
+    return json({ error: "unauthorized" }, 401);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
   const chatId = Deno.env.get("TELEGRAM_CHAT_ID");
-
-  if (!supabaseUrl || !serviceKey) {
-    return json({ error: "Missing Supabase credentials" }, 500);
-  }
-  if (!botToken || !chatId) {
-    return json({ error: "Missing Telegram credentials" }, 500);
+  if (!supabaseUrl || !serviceKey || !botToken || !chatId) {
+    return json({ error: "worker_not_configured" }, 500);
   }
 
-  let orderId: string;
+  let limit = 5;
   try {
-    const body = await req.json();
-    orderId = body?.order_id;
-    if (!orderId) throw new Error("order_id is required");
-  } catch (e) {
-    return json({ error: (e as Error).message }, 400);
+    const text = await req.text();
+    limit = dispatchLimit(text.trim() === "" ? null : JSON.parse(text));
+  } catch {
+    return json({ error: "bad_request" }, 400);
   }
 
-  const client = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false },
-  });
+  const client = workerDb(supabaseUrl, serviceKey);
 
-  try {
-    const { data: order, error: orderErr } = await client
-      .from("order_requests")
-      .select(ORDER_SELECT)
-      .eq("id", orderId)
-      .single();
-
-    if (orderErr || !order) {
-      return json({ error: `Order not found: ${orderId}` }, 404);
-    }
-
-    const { data: items, error: itemsErr } = await client
-      .from("order_request_items")
-      .select(ITEM_SELECT)
-      .eq("request_id", orderId)
-      .order("id", { ascending: true });
-
-    if (itemsErr) {
-      return json({ error: `Failed to load items: ${itemsErr.message}` }, 500);
-    }
-
-    const message = buildMessage(
-      order as unknown as OrderRequest,
-      (items ?? []) as unknown as OrderItem[],
-    );
-
-    const sent = await sendTelegram(botToken, chatId, message);
-    if (!sent.ok) {
-      console.error("Telegram API error:", JSON.stringify(sent));
-      return json({ error: "Telegram send failed", details: sent }, 502);
-    }
-
-    return json({ success: true, order_id: orderId });
-  } catch (e) {
-    console.error("order-notify error:", e);
-    return json({ error: (e as Error).message }, 500);
+  const { data: claimed, error: claimError } = await client.rpc(
+    "claim_order_notification_jobs",
+    { p_limit: limit },
+  );
+  if (claimError) {
+    console.error("order-notify claim failed");
+    return json({ error: "claim_failed" }, 500);
   }
+
+  const jobs = (claimed ?? []) as ClaimedJob[];
+  let sent = 0;
+  let failed = 0;
+
+  for (const job of jobs) {
+    const outcome = await deliverJob(client, botToken, chatId, job);
+    if (outcome === "sent") sent += 1;
+    else failed += 1;
+  }
+
+  return json({ claimed: jobs.length, sent, failed });
 });
+
+async function deliverJob(
+  client: WorkerDb,
+  botToken: string,
+  chatId: string,
+  job: ClaimedJob,
+): Promise<"sent" | "failed"> {
+  const { data: order, error: orderErr } = await client
+    .from("order_requests")
+    .select(ORDER_SELECT)
+    .eq("id", job.order_id)
+    .maybeSingle();
+
+  if (orderErr || !order) {
+    await markFailed(client, job.job_id, orderMissingFailure());
+    return "failed";
+  }
+
+  const { data: items, error: itemsErr } = await client
+    .from("order_request_items")
+    .select(ITEM_SELECT)
+    .eq("request_id", job.order_id)
+    .order("id", { ascending: true });
+
+  if (itemsErr) {
+    await markFailed(client, job.job_id, transportFailure());
+    return "failed";
+  }
+
+  const message = buildMessage(
+    order as unknown as OrderRequest,
+    (items ?? []) as unknown as OrderItem[],
+  );
+
+  let telegram: { ok?: boolean; result?: { message_id?: number } };
+  let status = 0;
+  try {
+    const response = await sendTelegram(botToken, chatId, message);
+    status = response.status;
+    telegram = response.body;
+  } catch {
+    await markFailed(client, job.job_id, transportFailure());
+    return "failed";
+  }
+
+  if (!telegram.ok) {
+    await markFailed(client, job.job_id, classifyTelegramHttp(status));
+    return "failed";
+  }
+
+  const messageId = telegram.result?.message_id ?? null;
+  const { error } = await client.rpc("complete_order_notification_job", {
+    p_job_id: job.job_id,
+    p_message_id: messageId,
+  });
+  if (error) {
+    console.error("order-notify complete failed", job.job_id);
+    return "failed";
+  }
+  return "sent";
+}
+
+async function markFailed(
+  client: WorkerDb,
+  jobId: string,
+  failure: DeliveryFailure,
+): Promise<void> {
+  const { error } = await client.rpc("fail_order_notification_job", {
+    p_job_id: jobId,
+    p_error: failure.code,
+    p_retryable: failure.retryable,
+  });
+  if (error) console.error("order-notify fail record failed", jobId);
+}
 
 async function sendTelegram(
   botToken: string,
   chatId: string,
   text: string,
-): Promise<{ ok: boolean; description?: string }> {
-  const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-    }),
-  });
-  return res.json();
+): Promise<{ status: number; body: { ok?: boolean; result?: { message_id?: number } } }> {
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(10_000),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+      }),
+    },
+  );
+  const body = await response.json();
+  return { status: response.status, body };
 }
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+    headers: { "Content-Type": "application/json" },
   });
 }

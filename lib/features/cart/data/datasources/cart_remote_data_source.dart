@@ -10,12 +10,12 @@ abstract interface class CartRemoteDataSource {
     required List<RequestItemPayloadDto> items,
   });
 
-  /// Calls the configured submit RPC (`submit_order_v3` when the discount
-  /// pricing flag is on, `submit_order_v2` otherwise) and returns the
-  /// parsed RPC response. After success, fires the `order-notify` Edge
-  /// Function (non-blocking).
+  /// Calls `submit_order_v4` when [requestId] is present, otherwise the
+  /// legacy `submit_order_v2` path. The database trigger queues notification.
+  /// The client does not invoke `order-notify`.
   Future<Map<String, dynamic>> submitOrderRequest({
-    required RequestSubmissionPayloadDto customer,
-    required List<RequestItemPayloadDto> items,
+    required Map<String, dynamic> customer,
+    required List<Map<String, dynamic>> items,
+    String? requestId,
   });
 }

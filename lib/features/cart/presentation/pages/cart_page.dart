@@ -34,67 +34,62 @@ class _CartPageState extends State<CartPage> {
     // CartCubit is provided by the GoRoute builder above this widget so
     // both this build context and the State's own context can resolve it.
     return Scaffold(
+      backgroundColor: Colors.transparent,
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
         backgroundColor: Colors.transparent,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: const Center(child: AppBackButton()),
-          title: const Text('Корзина'),
-          actions: [
-            BlocBuilder<CartCubit, CartState>(
-              buildWhen: (prev, curr) =>
-                  prev.status != curr.status || prev.isEmpty != curr.isEmpty,
-              builder: (context, state) {
-                if (state.status != CartStatus.success || state.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                return IconButton(
-                  icon: const Icon(Icons.delete_sweep_outlined),
-                  tooltip: 'Очистить корзину',
-                  onPressed: () => context.read<CartCubit>().clearAllItems(),
-                );
-              },
-            ),
-          ],
-        ),
-        body: Stack(
-          children: [
-            Positioned.fill(
-              child: Image.asset(
-                'assets/images/home/bg.jpg',
-                fit: BoxFit.cover,
-              ),
-            ),
-            const Positioned.fill(
-              child: ColoredBox(color: Color(0x38FFFFFF)),
-            ),
-            const SafeArea(child: _CartBody()),
-            BlocBuilder<CartCubit, CartState>(
-              buildWhen: (prev, curr) =>
-                  prev.status != curr.status || prev.isEmpty != curr.isEmpty,
-              builder: (context, state) {
-                if (state.status != CartStatus.success || state.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-                final bottomInset = MediaQuery.of(context).padding.bottom;
-                return Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16 + bottomInset,
-                  child: TiffanyPrimaryButton(
-                    label: 'Оформить заявку',
-                    onPressed: () => context.push(RouteNames.checkout),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      );
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: const Center(child: AppBackButton()),
+        title: const Text('Корзина'),
+        actions: [
+          BlocBuilder<CartCubit, CartState>(
+            buildWhen: (prev, curr) =>
+                prev.status != curr.status || prev.isEmpty != curr.isEmpty,
+            builder: (context, state) {
+              if (state.status != CartStatus.success || state.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                icon: const Icon(Icons.delete_sweep_outlined),
+                tooltip: 'Очистить корзину',
+                onPressed: () => context.read<CartCubit>().clearAllItems(),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset('assets/images/home/bg.jpg', fit: BoxFit.cover),
+          ),
+          const Positioned.fill(child: ColoredBox(color: Color(0x38FFFFFF))),
+          const SafeArea(child: _CartBody()),
+          BlocBuilder<CartCubit, CartState>(
+            buildWhen: (prev, curr) =>
+                prev.status != curr.status || prev.isEmpty != curr.isEmpty,
+            builder: (context, state) {
+              if (state.status != CartStatus.success || state.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final bottomInset = MediaQuery.of(context).padding.bottom;
+              return Positioned(
+                left: 16,
+                right: 16,
+                bottom: 16 + bottomInset,
+                child: TiffanyPrimaryButton(
+                  label: 'Оформить заявку',
+                  onPressed: () => context.push(RouteNames.checkout),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -106,8 +101,7 @@ class _CartBody extends StatelessWidget {
     return BlocBuilder<CartCubit, CartState>(
       builder: (context, state) {
         final child = switch (state.status) {
-          CartStatus.initial || CartStatus.loading =>
-            const CartListSkeleton(),
+          CartStatus.initial || CartStatus.loading => const CartListSkeleton(),
           CartStatus.failure => AppFailureView(
             message: state.errorMessage ?? 'Не удалось загрузить корзину',
             onRetry: () => context.read<CartCubit>().loadCart(),
@@ -134,10 +128,7 @@ class _CartContent extends StatelessWidget {
     final cubit = context.read<CartCubit>();
     final bottomInset = MediaQuery.of(context).padding.bottom;
     return ListView(
-      padding: EdgeInsets.only(
-        top: AppSpacing.xs,
-        bottom: 80 + bottomInset,
-      ),
+      padding: EdgeInsets.only(top: AppSpacing.xs, bottom: 80 + bottomInset),
       children: [
         ...state.items.map(
           (item) => CartItemTile(

@@ -8,6 +8,8 @@ import '../data/datasources/cart_local_data_source_impl.dart';
 import '../data/datasources/cart_remote_data_source.dart';
 import '../data/datasources/cart_remote_data_source_impl.dart';
 import '../data/datasources/checkout_draft_local_data_source.dart';
+import '../data/datasources/pending_checkout_store_impl.dart';
+import '../domain/pending_checkout_attempt.dart';
 import '../data/datasources/checkout_draft_local_data_source_impl.dart';
 import '../data/repositories/cart_repository_impl.dart';
 import '../data/repositories/checkout_draft_repository_impl.dart';
@@ -41,11 +43,16 @@ Future<void> initCartDependencies() async {
     () => CartRemoteDataSourceImpl(sl<SupabaseClient>(), sl<LoggerService>()),
   );
 
+  sl.registerLazySingleton<PendingCheckoutStore>(
+    () => PendingCheckoutStoreImpl(sl<SharedPreferences>()),
+  );
+
   sl.registerLazySingleton<CartRepository>(
     () => CartRepositoryImpl(
       sl<CartLocalDataSource>(),
       sl<CartRemoteDataSource>(),
       sl<SupabaseClient>(),
+      sl<PendingCheckoutStore>(),
     ),
   );
 

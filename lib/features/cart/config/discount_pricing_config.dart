@@ -1,20 +1,24 @@
 /// Phase 4 feature flag — controls whether the cart uses the discount-aware
-/// `quote_order_v1` + `submit_order_v3` RPCs (true) or the legacy
+/// `quote_order_v1` + `submit_order_v4` RPCs (true) or the legacy
 /// `submit_order_v2` flow (false). Single switch, no remote config.
+/// The value is a compile-time constant. Release builds cannot override it.
+/// The false branch is not a supported checkout path: it has no idempotency
+/// key and must not be enabled without a wrapper that keeps v2 pricing.
 ///
-/// Flip to `false` to roll back to the legacy v2 path. When `false`:
-///   - `quote_order_v1` is not called.
-///   - `submit_order_v2` is used for order submission.
-///   - The checkout UI hides the discount breakdown and the
-///     "Применить промокод" button, falling back to the prior behavior
-///     (raw promo code carried verbatim, manual application by the manager).
+/// Release keeps this true. The false branch also hides quote UI and would
+/// call `submit_order_v2`. That call is not idempotent, so this release does
+/// not use it.
 class DiscountPricingConfig {
   DiscountPricingConfig._();
 
   static const bool useDiscountPricingV1 = true;
 
-  static const String submitOrderRpcName =
-      useDiscountPricingV1 ? 'submit_order_v3' : 'submit_order_v2';
+  /// `submit_order_v4` is the idempotent checkout contract. `submit_order_v3`
+  /// stays callable for older clients and is not idempotent: a lost response
+  /// followed by another v3 call creates a second order.
+  static const String submitOrderRpcName = useDiscountPricingV1
+      ? 'submit_order_v4'
+      : 'submit_order_v2';
 
   static const String quoteOrderRpcName = 'quote_order_v1';
 
