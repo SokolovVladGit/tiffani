@@ -30,12 +30,14 @@ void main() {
     test('save then load returns normalized values', () async {
       final repo = await buildRepo();
 
-      await repo.save(const CheckoutDraftEntity(
-        name: '  Анна  ',
-        phone: '+37360000000',
-        email: '   anna@example.com ',
-        loyaltyCard: '42',
-      ));
+      await repo.save(
+        const CheckoutDraftEntity(
+          name: '  Анна  ',
+          phone: '+37360000000',
+          email: '   anna@example.com ',
+          loyaltyCard: '42',
+        ),
+      );
 
       final loaded = await repo.load();
 
@@ -47,24 +49,28 @@ void main() {
       expect(loaded.updatedAt, isNotNull);
     });
 
-    test('saving an empty draft clears storage and load returns null',
-        () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        StorageKeys.checkoutDraftV1: '{"name":"X"}',
-      });
-      final repo = await buildRepo();
-      expect(await repo.load(), isNotNull);
+    test(
+      'saving an empty draft clears storage and load returns null',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          StorageKeys.checkoutDraftV1: '{"name":"X"}',
+        });
+        final repo = await buildRepo();
+        expect(await repo.load(), isNotNull);
 
-      await repo.save(const CheckoutDraftEntity(
-        name: '   ',
-        phone: '',
-        email: null,
-        loyaltyCard: '  ',
-      ));
+        await repo.save(
+          const CheckoutDraftEntity(
+            name: '   ',
+            phone: '',
+            email: null,
+            loyaltyCard: '  ',
+          ),
+        );
 
-      final loaded = await repo.load();
-      expect(loaded, isNull);
-    });
+        final loaded = await repo.load();
+        expect(loaded, isNull);
+      },
+    );
 
     test('clear removes a previously stored draft', () async {
       final repo = await buildRepo();
@@ -98,28 +104,32 @@ void main() {
       expect(loaded, isNull);
     });
 
-    test('stored JSON without any recognised fields is treated as empty',
-        () async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        StorageKeys.checkoutDraftV1: '{"foo":"bar"}',
-      });
-      final repo = await buildRepo();
+    test(
+      'stored JSON without any recognised fields is treated as empty',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          StorageKeys.checkoutDraftV1: '{"foo":"bar"}',
+        });
+        final repo = await buildRepo();
 
-      final loaded = await repo.load();
+        final loaded = await repo.load();
 
-      expect(loaded, isNull);
-    });
+        expect(loaded, isNull);
+      },
+    );
 
-    test('save does not persist promo_code key even if added to raw JSON',
-        () async {
-      final repo = await buildRepo();
+    test(
+      'save does not persist promo_code key even if added to raw JSON',
+      () async {
+        final repo = await buildRepo();
 
-      await repo.save(const CheckoutDraftEntity(name: 'Анна'));
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(StorageKeys.checkoutDraftV1);
+        await repo.save(const CheckoutDraftEntity(name: 'Анна'));
+        final prefs = await SharedPreferences.getInstance();
+        final raw = prefs.getString(StorageKeys.checkoutDraftV1);
 
-      expect(raw, isNotNull);
-      expect(raw!.contains('promo_code'), isFalse);
-    });
+        expect(raw, isNotNull);
+        expect(raw!.contains('promo_code'), isFalse);
+      },
+    );
   });
 }

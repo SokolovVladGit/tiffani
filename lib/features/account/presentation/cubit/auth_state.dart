@@ -9,12 +9,16 @@ class AuthCubitState {
   final bool isLoading;
   final String? errorMessage;
 
+  /// Account was created, but the server did not issue a session.
+  final bool confirmationRequired;
+
   const AuthCubitState({
     this.status = AuthStatus.unknown,
     this.email,
     this.profile,
     this.isLoading = false,
     this.errorMessage,
+    this.confirmationRequired = false,
   });
 
   bool get isAuthenticated => status == AuthStatus.authenticated;
@@ -27,6 +31,7 @@ class AuthCubitState {
     String? errorMessage,
     bool clearError = false,
     bool clearProfile = false,
+    bool? confirmationRequired,
   }) {
     return AuthCubitState(
       status: status ?? this.status,
@@ -34,6 +39,7 @@ class AuthCubitState {
       profile: clearProfile ? null : (profile ?? this.profile),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
+      confirmationRequired: confirmationRequired ?? this.confirmationRequired,
     );
   }
 }

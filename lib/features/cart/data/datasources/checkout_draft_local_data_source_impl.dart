@@ -42,8 +42,8 @@ class CheckoutDraftLocalDataSourceImpl implements CheckoutDraftLocalDataSource {
   @override
   Future<void> save(CheckoutDraftEntity draft) async {
     final normalized = draft.normalized().copyWith(
-          updatedAt: DateTime.now().toUtc(),
-        );
+      updatedAt: DateTime.now().toUtc(),
+    );
     if (normalized.isEmpty) {
       await clear();
       return;

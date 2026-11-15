@@ -6,9 +6,12 @@ import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../../domain/order_reference.dart';
 
 class RequestSuccessPage extends StatefulWidget {
-  const RequestSuccessPage({super.key});
+  final String? orderId;
+
+  const RequestSuccessPage({super.key, this.orderId});
 
   @override
   State<RequestSuccessPage> createState() => _RequestSuccessPageState();
@@ -40,13 +43,13 @@ class _RequestSuccessPageState extends State<RequestSuccessPage>
       curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
     );
 
-    _glowOpacity = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 0, end: 0.18), weight: 40),
-      TweenSequenceItem(tween: Tween(begin: 0.18, end: 0.08), weight: 60),
-    ]).animate(CurvedAnimation(
-      parent: _animCtrl,
-      curve: const Interval(0.0, 0.7),
-    ));
+    _glowOpacity =
+        TweenSequence<double>([
+          TweenSequenceItem(tween: Tween(begin: 0, end: 0.18), weight: 40),
+          TweenSequenceItem(tween: Tween(begin: 0.18, end: 0.08), weight: 60),
+        ]).animate(
+          CurvedAnimation(parent: _animCtrl, curve: const Interval(0.0, 0.7)),
+        );
 
     _checkOpacity = CurvedAnimation(
       parent: _animCtrl,
@@ -128,10 +131,7 @@ class _RequestSuccessPageState extends State<RequestSuccessPage>
               height: 160,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: AppColors.seed,
-                  width: 1.5,
-                ),
+                border: Border.all(color: AppColors.seed, width: 1.5),
               ),
             ),
           ),
@@ -176,7 +176,7 @@ class _RequestSuccessPageState extends State<RequestSuccessPage>
       mainAxisSize: MainAxisSize.min,
       children: [
         const Text(
-          'Заказ успешно оформлен',
+          'Заказ оформлен. Мы получили вашу заявку.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 24,
@@ -185,9 +185,21 @@ class _RequestSuccessPageState extends State<RequestSuccessPage>
             letterSpacing: -0.3,
           ),
         ),
+        if (widget.orderId != null && widget.orderId!.trim().isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          Text(
+            'Номер заказа #${shortOrderReference(widget.orderId!)}',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         const Text(
-          'Наш менеджер скоро свяжется с вами\nдля подтверждения',
+          'Наш менеджер свяжется с вами для подтверждения',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 15,
@@ -195,21 +207,8 @@ class _RequestSuccessPageState extends State<RequestSuccessPage>
             height: 1.5,
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
-        const Text(
-          '📩 Детали заказа уже переданы менеджеру',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 13,
-            color: AppColors.textTertiary,
-            height: 1.4,
-          ),
-        ),
         const SizedBox(height: AppSpacing.xxxl + AppSpacing.sm),
-        TiffanyPrimaryButton(
-          label: 'Продолжить покупки',
-          onPressed: _goHome,
-        ),
+        TiffanyPrimaryButton(label: 'Продолжить покупки', onPressed: _goHome),
       ],
     );
   }

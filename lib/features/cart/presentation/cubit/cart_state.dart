@@ -13,6 +13,7 @@ class CartState {
   final bool isSubmitting;
   final bool submissionSuccess;
   final String? lastOrderId;
+  final bool pendingConflict;
 
   // Phase 4: discount-aware quote.
   final OrderQuoteEntity? quote;
@@ -34,6 +35,7 @@ class CartState {
     this.isSubmitting = false,
     this.submissionSuccess = false,
     this.lastOrderId,
+    this.pendingConflict = false,
     this.quote,
     this.isQuoting = false,
     this.quoteErrorMessage,
@@ -59,6 +61,8 @@ class CartState {
     bool? isSubmitting,
     bool? submissionSuccess,
     String? lastOrderId,
+    bool? pendingConflict,
+    bool clearError = false,
     OrderQuoteEntity? quote,
     bool clearQuote = false,
     bool? isQuoting,
@@ -72,14 +76,18 @@ class CartState {
       totalItems: totalItems ?? this.totalItems,
       totalQuantity: totalQuantity ?? this.totalQuantity,
       totalPrice: totalPrice ?? this.totalPrice,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: clearError
+          ? errorMessage
+          : (errorMessage ?? this.errorMessage),
       isSubmitting: isSubmitting ?? this.isSubmitting,
       submissionSuccess: submissionSuccess ?? this.submissionSuccess,
       lastOrderId: lastOrderId ?? this.lastOrderId,
+      pendingConflict: pendingConflict ?? this.pendingConflict,
       quote: clearQuote ? null : (quote ?? this.quote),
       isQuoting: isQuoting ?? this.isQuoting,
-      quoteErrorMessage:
-          clearQuoteError ? null : (quoteErrorMessage ?? this.quoteErrorMessage),
+      quoteErrorMessage: clearQuoteError
+          ? null
+          : (quoteErrorMessage ?? this.quoteErrorMessage),
       quoteStale: quoteStale ?? this.quoteStale,
     );
   }

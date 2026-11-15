@@ -11,11 +11,7 @@ class ProfileEntity {
     this.loyaltyCard,
   });
 
-  ProfileEntity copyWith({
-    String? name,
-    String? phone,
-    String? loyaltyCard,
-  }) {
+  ProfileEntity copyWith({String? name, String? phone, String? loyaltyCard}) {
     return ProfileEntity(
       id: id,
       name: name ?? this.name,

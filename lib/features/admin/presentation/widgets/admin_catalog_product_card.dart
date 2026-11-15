@@ -60,10 +60,9 @@ class AdminCatalogProductCard extends StatelessWidget {
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.textPrimary,
-                          height: 1.25,
+                          height: 1.3,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        softWrap: true,
                       ),
                       if (subtitle.isNotEmpty) ...[
                         const SizedBox(height: 4),

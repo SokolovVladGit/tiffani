@@ -65,10 +65,8 @@ class AppRouter {
         // event handlers calling state.context.read<CartCubit>()) can
         // resolve the cubit. CartCubit is a registered singleton, so
         // Cart and Checkout share the exact same instance.
-        builder: (context, state) => BlocProvider.value(
-          value: sl<CartCubit>(),
-          child: const CartPage(),
-        ),
+        builder: (context, state) =>
+            BlocProvider.value(value: sl<CartCubit>(), child: const CartPage()),
       ),
       GoRoute(
         path: RouteNames.glossary,
@@ -85,10 +83,7 @@ class AppRouter {
         builder: (context, state) {
           final extra = state.extra;
           if (extra is ProductDetailsPayload) {
-            return CatalogDetailsPage(
-              item: extra.item,
-              heroTag: extra.heroTag,
-            );
+            return CatalogDetailsPage(item: extra.item, heroTag: extra.heroTag);
           }
           return CatalogDetailsPage(item: extra! as CatalogItemEntity);
         },
@@ -114,20 +109,17 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.orderHistory,
-        builder: (context, state) =>
-            const AccountPage(showOrderHistory: true),
+        builder: (context, state) => const AccountPage(showOrderHistory: true),
       ),
       GoRoute(
         path: RouteNames.login,
-        builder: (context, state) => const AuthShellPage(
-          initialMode: AuthShellMode.login,
-        ),
+        builder: (context, state) =>
+            const AuthShellPage(initialMode: AuthShellMode.login),
       ),
       GoRoute(
         path: RouteNames.register,
-        builder: (context, state) => const AuthShellPage(
-          initialMode: AuthShellMode.register,
-        ),
+        builder: (context, state) =>
+            const AuthShellPage(initialMode: AuthShellMode.register),
       ),
       GoRoute(
         path: RouteNames.checkout,
@@ -142,7 +134,8 @@ class AppRouter {
       ),
       GoRoute(
         path: RouteNames.requestSuccess,
-        builder: (context, state) => const RequestSuccessPage(),
+        builder: (context, state) =>
+            RequestSuccessPage(orderId: sl<CartCubit>().state.lastOrderId),
       ),
       GoRoute(
         path: RouteNames.filteredCatalog,

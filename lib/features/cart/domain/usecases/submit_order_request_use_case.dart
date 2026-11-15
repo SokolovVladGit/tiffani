@@ -11,4 +11,10 @@ class SubmitOrderRequestUseCase {
     required RequestFormEntity form,
     required List<CartItemEntity> items,
   }) => _repository.submitOrderRequest(form: form, items: items);
+
+  Future<OrderResultEntity> retryPending() => _repository.retryPendingOrder();
+
+  Future<void> discardPending() => _repository.discardPendingOrder();
+
+  Future<bool> hasPending() => _repository.hasPendingOrder();
 }

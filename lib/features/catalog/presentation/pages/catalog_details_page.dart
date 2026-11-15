@@ -25,7 +25,9 @@ import '../../domain/gallery/catalog_gallery.dart';
 import '../cubit/product_images_cubit.dart';
 import '../cubit/product_images_state.dart';
 import '../cubit/similar_products_cubit.dart';
+import '../rich_text/catalog_html.dart';
 import '../widgets/catalog_gallery_view.dart';
+import '../widgets/product_description_section.dart';
 import '../widgets/similar_products_section.dart';
 
 class CatalogDetailsPage extends StatefulWidget {
@@ -500,7 +502,6 @@ class _HeroSectionState extends State<_HeroSection> {
       },
     );
   }
-
 }
 
 class _HeroIconButton extends StatelessWidget {
@@ -527,27 +528,6 @@ class _ContentSection extends StatelessWidget {
 
   const _ContentSection({required this.item});
 
-  static final _countryLineRegex =
-      RegExp(r'Страна[- ]производитель\s*:\s*(.+)', caseSensitive: false);
-
-  /// Extracts "Страна-производитель: ..." from [text], returning the
-  /// cleaned text and the extracted country (if any).
-  static ({String? text, String? country}) _extractCountry(String? text) {
-    if (text == null) return (text: null, country: null);
-    final match = _countryLineRegex.firstMatch(text);
-    if (match == null) return (text: text, country: null);
-
-    final country = match.group(1)!.trim();
-    final cleaned = text
-        .replaceFirst(_countryLineRegex, '')
-        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-        .trim();
-    return (
-      text: cleaned.isEmpty ? null : cleaned,
-      country: country.isEmpty ? null : country,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final stock = availabilityText(
@@ -556,16 +536,10 @@ class _ContentSection extends StatelessWidget {
       detailed: true,
     );
     final stockColor = availabilityColor(stock);
-
-    final rawShort = _stripHtml(item.shortDescription);
-    final rawFull = _stripHtml(item.fullDescription);
-
-    final shortResult = _extractCountry(rawShort);
-    final fullResult = _extractCountry(rawFull);
-
-    final shortDesc = shortResult.text;
-    final fullDesc = fullResult.text;
-    final country = shortResult.country ?? fullResult.country;
+    final description = prepareCatalogDescription(
+      full: item.fullDescription,
+      short: item.shortDescription,
+    );
 
     return Container(
       width: double.infinity,
@@ -636,43 +610,25 @@ class _ContentSection extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             _buildChips(),
           ],
-          if (shortDesc != null) ...[
+          if (description != null && !description.isEmpty) ...[
             const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Описание'),
-            const SizedBox(height: AppSpacing.sm),
-            _BodyText(text: shortDesc),
+            ProductDescriptionSection(
+              fullDescription: item.fullDescription,
+              shortDescription: item.shortDescription,
+            ),
           ],
-          if (fullDesc != null) ...[
-            const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Подробнее'),
-            const SizedBox(height: AppSpacing.sm),
-            _BodyText(text: fullDesc),
-          ],
-          if (country != null) ...[
+          if (description?.country != null) ...[
             const SizedBox(height: AppSpacing.xxl),
             const _SectionTitle(text: 'Характеристики'),
             const SizedBox(height: AppSpacing.sm),
-            _SpecRow(label: 'Страна-производитель', value: country),
+            _SpecRow(
+              label: 'Страна-производитель',
+              value: description!.country!,
+            ),
           ],
         ],
       ),
     );
-  }
-
-  static final _htmlTagRegex = RegExp(r'<[^>]*>');
-
-  static String? _stripHtml(String? raw) {
-    if (raw == null) return null;
-    var text = raw
-        .replaceAll(_htmlTagRegex, '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'");
-    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
-    return text.isEmpty ? null : text;
   }
 
   Widget _buildPrice() {
@@ -770,35 +726,6 @@ class _InfoChip extends StatelessWidget {
           letterSpacing: 0.15,
         ),
       ),
-    );
-  }
-}
-
-class _BodyText extends StatelessWidget {
-  final String text;
-
-  const _BodyText({required this.text});
-
-  static const _style = TextStyle(
-    fontSize: 14,
-    color: AppColors.textSecondary,
-    height: 1.6,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final paragraphs = text.split(RegExp(r'\n\s*\n'));
-    if (paragraphs.length <= 1) {
-      return Text(text, style: _style);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (int i = 0; i < paragraphs.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.lg),
-          Text(paragraphs[i].trim(), style: _style),
-        ],
-      ],
     );
   }
 }

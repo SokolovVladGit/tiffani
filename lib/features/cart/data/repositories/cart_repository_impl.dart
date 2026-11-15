@@ -6,8 +6,11 @@ import '../../domain/entities/cart_summary_entity.dart';
 import '../../domain/entities/order_quote_entity.dart';
 import '../../domain/entities/order_result_entity.dart';
 import '../../domain/entities/request_form_entity.dart';
+import '../../domain/checkout_attempt.dart';
 import '../../domain/exceptions/order_submission_exception.dart';
+import '../../domain/pending_checkout_attempt.dart';
 import '../../domain/repositories/cart_repository.dart';
+import '../../presentation/checkout_contact.dart';
 import '../datasources/cart_local_data_source.dart';
 import '../datasources/cart_remote_data_source.dart';
 import '../dto/cart_item_dto.dart';
@@ -19,11 +22,30 @@ class CartRepositoryImpl implements CartRepository {
   final CartLocalDataSource _localDataSource;
   final CartRemoteDataSource _remoteDataSource;
   final SupabaseClient _supabaseClient;
+  final PendingCheckoutStore _pendingStore;
+  late final CheckoutAttemptCoordinator _attempts = CheckoutAttemptCoordinator(
+    store: _pendingStore,
+    currentOwnerId: () => _supabaseClient.auth.currentUser?.id,
+    newRequestId: newCheckoutRequestId,
+    submit:
+        ({
+          required Map<String, dynamic> customer,
+          required List<Map<String, dynamic>> items,
+          required String requestId,
+        }) {
+          return _remoteDataSource.submitOrderRequest(
+            customer: customer,
+            items: items,
+            requestId: requestId,
+          );
+        },
+  );
 
-  const CartRepositoryImpl(
+  CartRepositoryImpl(
     this._localDataSource,
     this._remoteDataSource,
     this._supabaseClient,
+    this._pendingStore,
   );
 
   @override
@@ -127,17 +149,19 @@ class CartRepositoryImpl implements CartRepository {
       return const OrderQuoteEntity(
         ok: false,
         errors: [
-          OrderQuoteErrorEntity(
-            code: 'empty_items',
-            message: 'Корзина пуста',
-          ),
+          OrderQuoteErrorEntity(code: 'empty_items', message: 'Корзина пуста'),
         ],
       );
     }
 
-    final customer = _buildCustomerPayload(form, requireFulfillmentValid: false);
+    final customer = _buildCustomerPayload(
+      form,
+      requireFulfillmentValid: false,
+    );
     final itemPayloads = items
-        .map((i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity))
+        .map(
+          (i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity),
+        )
         .toList();
 
     final raw = await _remoteDataSource.quoteOrder(
@@ -158,10 +182,13 @@ class CartRepositoryImpl implements CartRepository {
         message: 'Укажите имя',
       );
     }
-    if (form.phone.trim().isEmpty) {
-      throw const OrderSubmissionException(
-        code: 'missing_phone',
-        message: 'Укажите телефон',
+    final phoneError = validateCheckoutPhone(form.phone);
+    if (phoneError != null) {
+      throw OrderSubmissionException(
+        code: phoneError == checkoutPhoneRequiredMessage
+            ? 'missing_phone'
+            : 'invalid_phone',
+        message: phoneError,
       );
     }
     if (items.isEmpty) {
@@ -173,13 +200,24 @@ class CartRepositoryImpl implements CartRepository {
 
     final customer = _buildCustomerPayload(form, requireFulfillmentValid: true);
     final itemPayloads = items
-        .map((i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity))
+        .map(
+          (i) => RequestItemPayloadDto(variantId: i.id, quantity: i.quantity),
+        )
         .toList();
 
-    final raw = await _remoteDataSource.submitOrderRequest(
-      customer: customer,
-      items: itemPayloads,
-    );
+    final raw = DiscountPricingConfig.useDiscountPricingV1
+        ? await _attempts.submitPayload(
+            customer: customer.toMap(),
+            items: itemPayloads.map((item) => item.toMap()).toList(),
+          )
+        // Compile-time dead while useDiscountPricingV1 is const true.
+        // submit_order_v2 has no idempotency key and is not a supported
+        // release checkout path. Do not enable it without a v2-preserving
+        // idempotent wrapper; routing it to v4 would change pricing.
+        : await _remoteDataSource.submitOrderRequest(
+            customer: customer.toMap(),
+            items: itemPayloads.map((item) => item.toMap()).toList(),
+          );
 
     // submit_order_v3 returns ok=false on user-correctable failures; map to
     // an OrderSubmissionException with a Russian message. submit_order_v2
@@ -192,6 +230,25 @@ class CartRepositoryImpl implements CartRepository {
     return OrderQuoteDto.parseOrderResult(raw);
   }
 
+  @override
+  Future<OrderResultEntity> retryPendingOrder() async {
+    final raw = await _attempts.retryStored();
+    final okField = raw['ok'];
+    if (okField is bool && !okField) {
+      throw _mapErrorResponse(raw);
+    }
+    return OrderQuoteDto.parseOrderResult(raw);
+  }
+
+  @override
+  Future<void> discardPendingOrder() => _attempts.discard();
+
+  @override
+  Future<bool> hasPendingOrder() async {
+    final pending = await _attempts.loadPending();
+    return pending != null;
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
@@ -201,8 +258,9 @@ class CartRepositoryImpl implements CartRepository {
     required bool requireFulfillmentValid,
   }) {
     final f = form.fulfillment;
-    final legacyAddress =
-        f.isPickup ? null : _nullIfEmpty(form.deliveryAddress);
+    final legacyAddress = f.isPickup
+        ? null
+        : _nullIfEmpty(form.deliveryAddress);
 
     return RequestSubmissionPayloadDto(
       name: form.name.trim(),

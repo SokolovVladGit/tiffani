@@ -8,6 +8,7 @@ import '../../../../core/theme/app_radius.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../auth_form_validators.dart';
 import '../cubit/auth_cubit.dart';
 import '../cubit/auth_state.dart';
 
@@ -92,9 +93,7 @@ class _AuthShellPageState extends State<AuthShellPage> {
           } else if (state.errorMessage != null) {
             ScaffoldMessenger.of(context)
               ..hideCurrentSnackBar()
-              ..showSnackBar(
-                SnackBar(content: Text(state.errorMessage!)),
-              );
+              ..showSnackBar(SnackBar(content: Text(state.errorMessage!)));
             sl<AuthCubit>().clearError();
           }
         },
@@ -125,10 +124,7 @@ class _AuthShellPageState extends State<AuthShellPage> {
                         gradient: LinearGradient(
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
-                          colors: [
-                            Color(0x30FFFFFF),
-                            Color(0x00FFFFFF),
-                          ],
+                          colors: [Color(0x30FFFFFF), Color(0x00FFFFFF)],
                         ),
                       ),
                     ),
@@ -153,8 +149,7 @@ class _AuthShellPageState extends State<AuthShellPage> {
                             children: [
                               _WelcomeContent(
                                 onLogin: () => _goTo(AuthShellMode.login),
-                                onRegister: () =>
-                                    _goTo(AuthShellMode.register),
+                                onRegister: () => _goTo(AuthShellMode.register),
                               ),
                               _LoginContent(
                                 onSwitchToRegister: () =>
@@ -187,8 +182,10 @@ class _AuthShellPageState extends State<AuthShellPage> {
 const _surfaceColor = Color(0x66FFFFFF);
 const _surfaceRadius = AppRadius.lg;
 const _surfaceBorder = BorderSide(color: Color(0x33FFFFFF), width: 0.5);
-const _surfacePadding =
-    EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.xl);
+const _surfacePadding = EdgeInsets.symmetric(
+  horizontal: AppSpacing.xl,
+  vertical: AppSpacing.xl,
+);
 
 /// Proportional top spacer that anchors content to the same vertical zone
 /// across all auth modes (~35–40% of screen when at rest).
@@ -203,10 +200,7 @@ class _WelcomeContent extends StatelessWidget {
   final VoidCallback onLogin;
   final VoidCallback onRegister;
 
-  const _WelcomeContent({
-    required this.onLogin,
-    required this.onRegister,
-  });
+  const _WelcomeContent({required this.onLogin, required this.onRegister});
 
   @override
   Widget build(BuildContext context) {
@@ -248,10 +242,7 @@ class _WelcomeContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxxl),
-                TiffanyPrimaryButton(
-                  label: 'Войти',
-                  onPressed: onLogin,
-                ),
+                TiffanyPrimaryButton(label: 'Войти', onPressed: onLogin),
                 const SizedBox(height: AppSpacing.md),
                 SizedBox(
                   width: double.infinity,
@@ -326,97 +317,101 @@ class _LoginContentState extends State<_LoginContent>
             ),
             child: Form(
               key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Войдите в аккаунт',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Text(
-                    'Используйте email и пароль',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(hintText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autocorrect: false,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty)
-                            ? 'Укажите email'
-                            : null,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Пароль',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AppColors.textTertiary,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscure = !_obscure),
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Войдите в аккаунт',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    obscureText: _obscure,
-                    textInputAction: TextInputAction.done,
-                    validator: (v) =>
-                        (v == null || v.isEmpty) ? 'Укажите пароль' : null,
-                    onFieldSubmitted: (_) => _handleLogin(),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  BlocBuilder<AuthCubit, AuthCubitState>(
-                    buildWhen: (prev, curr) =>
-                        prev.isLoading != curr.isLoading,
-                    builder: (context, state) {
-                      return TiffanyPrimaryButton(
-                        label: 'Войти',
-                        onPressed: state.isLoading ? null : _handleLogin,
-                        isLoading: state.isLoading,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Center(
-                    child: GestureDetector(
-                      onTap: widget.onSwitchToRegister,
-                      child: const Text.rich(
-                        TextSpan(
-                          text: 'Нет аккаунта? ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
+                    const SizedBox(height: AppSpacing.sm),
+                    const Text(
+                      'Используйте email и пароль',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    TextFormField(
+                      controller: _emailCtrl,
+                      decoration: const InputDecoration(hintText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      autofillHints: const [AutofillHints.email],
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Укажите email'
+                          : null,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    TextFormField(
+                      controller: _passwordCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Пароль',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppColors.textTertiary,
+                            size: 20,
                           ),
-                          children: [
-                            TextSpan(
-                              text: 'Создать',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
+                      validator: (v) =>
+                          (v == null || v.isEmpty) ? 'Укажите пароль' : null,
+                      onFieldSubmitted: (_) => _handleLogin(),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    BlocBuilder<AuthCubit, AuthCubitState>(
+                      buildWhen: (prev, curr) =>
+                          prev.isLoading != curr.isLoading,
+                      builder: (context, state) {
+                        return TiffanyPrimaryButton(
+                          label: 'Войти',
+                          onPressed: state.isLoading ? null : _handleLogin,
+                          isLoading: state.isLoading,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Center(
+                      child: GestureDetector(
+                        onTap: widget.onSwitchToRegister,
+                        child: const Text.rich(
+                          TextSpan(
+                            text: 'Нет аккаунта? ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
+                            children: [
+                              TextSpan(
+                                text: 'Создать',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -447,8 +442,6 @@ class _RegisterContentState extends State<_RegisterContent>
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscure = true;
-  bool _emailSent = false;
-  String _sentEmail = '';
 
   @override
   bool get wantKeepAlive => true;
@@ -463,40 +456,34 @@ class _RegisterContentState extends State<_RegisterContent>
 
   void _handleRegister() {
     if (!_formKey.currentState!.validate()) return;
-    _sentEmail = _emailCtrl.text.trim();
     sl<AuthCubit>().signUp(
-      email: _sentEmail,
+      email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
     );
   }
 
-  void _resetToForm() => setState(() => _emailSent = false);
-
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return BlocListener<AuthCubit, AuthCubitState>(
-      listenWhen: (prev, curr) => prev.isLoading && !curr.isLoading,
-      listener: (context, state) {
-        if (!state.isAuthenticated && state.errorMessage == null) {
-          setState(() => _emailSent = true);
-        }
+    return BlocBuilder<AuthCubit, AuthCubitState>(
+      buildWhen: (prev, curr) =>
+          prev.confirmationRequired != curr.confirmationRequired,
+      builder: (context, state) {
+        return AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: state.confirmationRequired
+              ? _EmailConfirmationContent(
+                  email: _emailCtrl.text.trim(),
+                  onChangeEmail: () => sl<AuthCubit>().dismissConfirmation(),
+                  onSwitchToLogin: widget.onSwitchToLogin,
+                )
+              : _buildForm(context),
+        );
       },
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        child: _emailSent
-            ? _EmailConfirmationContent(
-                email: _sentEmail,
-                onChangeEmail: _resetToForm,
-                onSwitchToLogin: widget.onSwitchToLogin,
-              )
-            : _buildForm(context),
-      ),
     );
   }
 
   Widget _buildForm(BuildContext context) {
-    super.build(context);
     return SingleChildScrollView(
       key: const ValueKey('register_form'),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -513,119 +500,114 @@ class _RegisterContentState extends State<_RegisterContent>
             ),
             child: Form(
               key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Создайте аккаунт',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.sm),
-                  const Text(
-                    'Для сохранения данных и истории заказов',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  TextFormField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(hintText: 'Email'),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autocorrect: false,
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return 'Укажите email';
-                      }
-                      if (!v.contains('@')) return 'Некорректный email';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  TextFormField(
-                    controller: _passwordCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Пароль',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          color: AppColors.textTertiary,
-                          size: 20,
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscure = !_obscure),
+              child: AutofillGroup(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Создайте аккаунт',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
                     ),
-                    obscureText: _obscure,
-                    textInputAction: TextInputAction.next,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Укажите пароль';
-                      if (v.length < 6) return 'Минимум 6 символов';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  TextFormField(
-                    controller: _confirmCtrl,
-                    decoration: const InputDecoration(
-                      hintText: 'Подтвердите пароль',
+                    const SizedBox(height: AppSpacing.sm),
+                    const Text(
+                      'Для сохранения данных и истории заказов',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                    obscureText: _obscure,
-                    textInputAction: TextInputAction.done,
-                    validator: (v) {
-                      if (v != _passwordCtrl.text) {
-                        return 'Пароли не совпадают';
-                      }
-                      return null;
-                    },
-                    onFieldSubmitted: (_) => _handleRegister(),
-                  ),
-                  const SizedBox(height: AppSpacing.xxl),
-                  BlocBuilder<AuthCubit, AuthCubitState>(
-                    buildWhen: (prev, curr) =>
-                        prev.isLoading != curr.isLoading,
-                    builder: (context, state) {
-                      return TiffanyPrimaryButton(
-                        label: 'Создать аккаунт',
-                        onPressed:
-                            state.isLoading ? null : _handleRegister,
-                        isLoading: state.isLoading,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                  Center(
-                    child: GestureDetector(
-                      onTap: widget.onSwitchToLogin,
-                      child: const Text.rich(
-                        TextSpan(
-                          text: 'Уже есть аккаунт? ',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppColors.textSecondary,
+                    const SizedBox(height: AppSpacing.xxl),
+                    TextFormField(
+                      key: const Key('register-email'),
+                      controller: _emailCtrl,
+                      decoration: const InputDecoration(hintText: 'Email'),
+                      keyboardType: TextInputType.emailAddress,
+                      textCapitalization: TextCapitalization.none,
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      autofillHints: const [AutofillHints.email],
+                      validator: validateRegistrationEmail,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    TextFormField(
+                      key: const Key('register-password'),
+                      controller: _passwordCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'Пароль',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscure
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: AppColors.textTertiary,
+                            size: 20,
                           ),
-                          children: [
-                            TextSpan(
-                              text: 'Войти',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
-                              ),
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: validateRegistrationPassword,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    TextFormField(
+                      key: const Key('register-confirm'),
+                      controller: _confirmCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Подтвердите пароль',
+                      ),
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.newPassword],
+                      validator: (v) =>
+                          validatePasswordConfirmation(v, _passwordCtrl.text),
+                      onFieldSubmitted: (_) => _handleRegister(),
+                    ),
+                    const SizedBox(height: AppSpacing.xxl),
+                    BlocBuilder<AuthCubit, AuthCubitState>(
+                      buildWhen: (prev, curr) =>
+                          prev.isLoading != curr.isLoading,
+                      builder: (context, state) {
+                        return TiffanyPrimaryButton(
+                          key: const Key('register-submit'),
+                          label: 'Создать аккаунт',
+                          onPressed: state.isLoading ? null : _handleRegister,
+                          isLoading: state.isLoading,
+                        );
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    Center(
+                      child: GestureDetector(
+                        onTap: widget.onSwitchToLogin,
+                        child: const Text.rich(
+                          TextSpan(
+                            text: 'Уже есть аккаунт? ',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
+                            children: [
+                              TextSpan(
+                                text: 'Войти',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -637,7 +619,7 @@ class _RegisterContentState extends State<_RegisterContent>
 }
 
 // ---------------------------------------------------------------------------
-// Email confirmation — shown after successful signUp
+// Shown only when the server created the user and withheld the session.
 // ---------------------------------------------------------------------------
 
 class _EmailConfirmationContent extends StatelessWidget {
@@ -686,7 +668,7 @@ class _EmailConfirmationContent extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 const Text(
-                  'Проверьте почту',
+                  'Подтвердите email',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 22,
@@ -695,10 +677,12 @@ class _EmailConfirmationContent extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Мы отправили ссылку для\nподтверждения аккаунта',
+                const Text(
+                  'Аккаунт создан, но сервер не выдал сессию. '
+                  'Подтвердите email по ссылке из письма, затем войдите. '
+                  'Повторная регистрация не нужна.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
                     height: 1.4,
@@ -762,9 +746,10 @@ class _WelcomeMonogramState extends State<_WelcomeMonogram>
       vsync: this,
       duration: const Duration(milliseconds: 2800),
     )..repeat(reverse: true);
-    _rotation = Tween<double>(begin: -0.03, end: 0.03).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _rotation = Tween<double>(
+      begin: -0.03,
+      end: 0.03,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
   @override
