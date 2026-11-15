@@ -48,7 +48,11 @@ export interface TildaCatalog {
  * Row written to `products` base table.
  *
  * `mark` is intentionally excluded — manually curated ('NEW', 'ХИТ').
- * Omitting it means INSERT gets DB default (NULL), UPDATE leaves it untouched.
+ * `text` is intentionally excluded — the full HTML description is restored
+ * outside YML sync.
+ * `app_is_visible` is intentionally excluded. A new Tilda insert is hidden
+ * by hide_new_tilda_product(); an existing row keeps the admin's choice.
+ * Omitting these columns leaves an existing value untouched.
  */
 export interface ProductRow {
   tilda_uid: string;
@@ -90,6 +94,8 @@ export interface ProductImageRow {
   product_id: string;
   url: string;
   position: number;
+  /** YML variant primary. Requires product_images.source. */
+  source: "yml_variant";
 }
 
 export interface SyncStats {

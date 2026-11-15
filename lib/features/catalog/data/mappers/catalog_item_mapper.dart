@@ -20,6 +20,7 @@ extension CatalogItemMapper on CatalogItemDto {
       edition: editions,
       modification: modifications,
       attributes: attributes,
+      tildaUid: tildaUid,
     );
   }
 }

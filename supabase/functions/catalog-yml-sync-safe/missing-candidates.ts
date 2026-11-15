@@ -29,7 +29,13 @@ export interface MissingCandidatesResult {
   action_taken: "none";
 }
 
-const PAGE_SIZE = 5_000;
+/**
+ * PostgREST `db-max-rows` defaults to 1000. A page larger than that
+ * comes back short, and `length < pageSize` used to look like the
+ * last page. Stay at 500 and require the exact total count so a
+ * truncated page fails instead of reporting a partial catalog.
+ */
+export const MISSING_CANDIDATES_PAGE_SIZE = 500;
 
 /**
  * Computes the missing-candidates summary by comparing active
@@ -59,12 +65,12 @@ export async function computeMissingCandidates(
 
   let page = 0;
   while (true) {
-    const from = page * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
+    const from = page * MISSING_CANDIDATES_PAGE_SIZE;
+    const to = from + MISSING_CANDIDATES_PAGE_SIZE - 1;
 
-    const { data, error } = await client
+    const { data, error, count } = await client
       .from("products")
-      .select("tilda_uid")
+      .select("tilda_uid", { count: "exact" })
       .eq("is_active", true)
       .not("tilda_uid", "is", null)
       .range(from, to);
@@ -74,10 +80,21 @@ export async function computeMissingCandidates(
         `missing-candidates page ${page} failed: ${error.message}`,
       );
     }
-    if (!data || data.length === 0) break;
+    if (typeof count !== "number") {
+      throw new Error(
+        `missing-candidates page ${page} returned no total count`,
+      );
+    }
 
-    total += data.length;
-    for (const row of data) {
+    const rows = data ?? [];
+    if (rows.length > MISSING_CANDIDATES_PAGE_SIZE) {
+      throw new Error(
+        `missing-candidates page ${page} returned ${rows.length} rows, page size is ${MISSING_CANDIDATES_PAGE_SIZE}`,
+      );
+    }
+
+    total += rows.length;
+    for (const row of rows) {
       const uid = String((row as { tilda_uid: string }).tilda_uid ?? "");
       if (!uid) continue;
       if (!ymlKeys.has(uid)) {
@@ -88,8 +105,18 @@ export async function computeMissingCandidates(
       }
     }
 
-    if (data.length < PAGE_SIZE) break;
+    if (rows.length < MISSING_CANDIDATES_PAGE_SIZE) {
+      if (total !== count) {
+        throw new Error(
+          `missing-candidates truncated: read ${total} of ${count} on page ${page}`,
+        );
+      }
+      break;
+    }
     page++;
+    if (page > 10_000) {
+      throw new Error("missing-candidates pagination did not terminate");
+    }
   }
 
   return {

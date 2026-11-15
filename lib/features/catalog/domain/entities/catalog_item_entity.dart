@@ -15,6 +15,7 @@ class CatalogItemEntity {
   final String? edition;
   final String? modification;
   final Map<String, dynamic>? attributes;
+  final String? tildaUid;
 
   const CatalogItemEntity({
     required this.id,
@@ -33,5 +34,9 @@ class CatalogItemEntity {
     this.edition,
     this.modification,
     this.attributes,
+    this.tildaUid,
   });
+
+  bool get isTildaImported =>
+      tildaUid != null && tildaUid!.trim().isNotEmpty;
 }

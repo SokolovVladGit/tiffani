@@ -257,5 +257,35 @@ Deno.test(
     assertEquals(imageRows.length, 1);
     assertEquals(imageRows[0].url, "https://cdn/legacy.jpg");
     assertEquals(imageRows[0].position, 0);
+    assertEquals(imageRows[0].source, "yml_variant");
+  },
+);
+
+Deno.test(
+  "upsertCatalogSlice tags YML images and does not write mark or text",
+  async () => {
+    const { client, calls } = makeStubClient();
+    // deno-lint-ignore no-explicit-any
+    await upsertCatalogSlice(client as any, CATALOG, "run-source");
+
+    const imageRows = calls
+      .filter((c) => c.table === "product_images")
+      .flatMap((c) => c.rows);
+    assert(imageRows.length > 0);
+    for (const row of imageRows) {
+      assertEquals(row.source, "yml_variant");
+    }
+
+    const productRows = calls
+      .filter((c) => c.table === "products")
+      .flatMap((c) => c.rows);
+    for (const row of productRows) {
+      assert(!("mark" in row), "YML upsert must not write products.mark");
+      assert(!("text" in row), "YML upsert must not write products.text");
+      assert(
+        !("app_is_visible" in row),
+        "YML upsert must not write products.app_is_visible",
+      );
+    }
   },
 );

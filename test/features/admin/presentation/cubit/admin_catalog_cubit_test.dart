@@ -3,7 +3,6 @@ import 'package:tiffani/features/admin/domain/entities/admin_catalog_product.dar
 import 'package:tiffani/features/admin/domain/entities/admin_native_product_form.dart';
 import 'package:tiffani/features/admin/domain/repositories/admin_catalog_repository.dart';
 import 'package:tiffani/features/admin/presentation/cubit/admin_catalog_cubit.dart';
-import 'package:tiffani/features/admin/presentation/cubit/admin_catalog_state.dart';
 
 class _FakeAdminCatalogRepository implements AdminCatalogRepository {
   _FakeAdminCatalogRepository({

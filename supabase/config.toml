@@ -1,3 +1,5 @@
+# pg_net has no user JWT. The function rejects every request that does not
+# present ORDER_NOTIFY_WORKER_SECRET before it reads an order.
 [functions.order-notify]
 verify_jwt = false
 
@@ -8,6 +10,14 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.catalog-yml-sync-safe]
+verify_jwt = true
+
+# Opt-in gallery recovery. Live mode is explicit, admin-only, and not scheduled.
+[functions.catalog-gallery-recover]
+verify_jwt = true
+
+# Gallery queue. Inspection is the default work. Live requires authorize_live.
+[functions.catalog-gallery-queue]
 verify_jwt = true
 
 [functions.catalog-yml-import-manual]

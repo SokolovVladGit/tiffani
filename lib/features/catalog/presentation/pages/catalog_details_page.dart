@@ -12,7 +12,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/utils/product_trust_helpers.dart';
-import '../../../../core/widgets/app_image_placeholder.dart';
 import '../../../../core/widgets/sticky_cta_bar.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
 import '../../../cart/domain/entities/cart_item_from_catalog.dart';
@@ -22,9 +21,13 @@ import '../../../recently_viewed/domain/entities/recently_viewed_item.dart';
 import '../../../recently_viewed/presentation/cubit/recently_viewed_cubit.dart';
 import '../../domain/entities/catalog_item_entity.dart';
 import '../../domain/entities/product_image_entity.dart';
+import '../../domain/gallery/catalog_gallery.dart';
 import '../cubit/product_images_cubit.dart';
 import '../cubit/product_images_state.dart';
 import '../cubit/similar_products_cubit.dart';
+import '../rich_text/catalog_html.dart';
+import '../widgets/catalog_gallery_view.dart';
+import '../widgets/product_description_section.dart';
 import '../widgets/similar_products_section.dart';
 
 class CatalogDetailsPage extends StatefulWidget {
@@ -410,15 +413,18 @@ class _HeroSectionState extends State<_HeroSection> {
 
     return BlocBuilder<ProductImagesCubit, ProductImagesState>(
       builder: (context, imagesState) {
-        final images = imagesState.images;
+        final loadedImages = imagesState.status == ProductImagesStatus.success
+            ? imagesState.images
+            : const <ProductImageEntity>[];
+        final displayUrls = composeCatalogGallery(
+          variantPhotoUrl: widget.item.imageUrl,
+          images: loadedImages,
+          isTildaProduct: widget.item.isTildaImported,
+        );
         final safeIndex =
-            _selectedIndex < images.length ? _selectedIndex : 0;
-
-        String? displayUrl;
-        if (images.isNotEmpty) {
-          displayUrl = images[safeIndex].url;
-        }
-        displayUrl ??= widget.item.imageUrl;
+            _selectedIndex < displayUrls.length ? _selectedIndex : 0;
+        final displayUrl =
+            displayUrls.isEmpty ? null : displayUrls[safeIndex];
 
         final useHero = widget.heroTag != null && safeIndex == 0;
 
@@ -426,7 +432,10 @@ class _HeroSectionState extends State<_HeroSection> {
           duration: const Duration(milliseconds: 200),
           child: KeyedSubtree(
             key: ValueKey(displayUrl ?? ''),
-            child: _buildMainImage(displayUrl, imageHeight),
+            child: CatalogGalleryMainImage(
+              url: displayUrl,
+              height: imageHeight,
+            ),
           ),
         );
 
@@ -479,122 +488,18 @@ class _HeroSectionState extends State<_HeroSection> {
                 ],
               ),
             ),
-            if (images.length > 1)
-              _ThumbnailStrip(
-                images: images,
-                selectedIndex: safeIndex,
-                onSelected: (index) {
-                  if (index != _selectedIndex) {
-                    setState(() => _selectedIndex = index);
-                  }
-                },
-              ),
+            CatalogGalleryThumbnails(
+              urls: displayUrls,
+              selectedIndex: safeIndex,
+              onSelected: (index) {
+                if (index != _selectedIndex) {
+                  setState(() => _selectedIndex = index);
+                }
+              },
+            ),
           ],
         );
       },
-    );
-  }
-
-  Widget _buildMainImage(String? url, double imageHeight) {
-    if (url != null && url.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: url,
-        width: double.infinity,
-        height: imageHeight,
-        fit: BoxFit.contain,
-        placeholder: (_, _) => SizedBox(
-          width: double.infinity,
-          height: imageHeight,
-        ),
-        errorWidget: (_, _, _) => AppImagePlaceholder(
-          width: double.infinity,
-          height: imageHeight,
-          iconSize: 48,
-        ),
-      );
-    }
-    return AppImagePlaceholder(
-      width: double.infinity,
-      height: imageHeight,
-      iconSize: 48,
-    );
-  }
-}
-
-class _ThumbnailStrip extends StatelessWidget {
-  final List<ProductImageEntity> images;
-  final int selectedIndex;
-  final ValueChanged<int> onSelected;
-
-  const _ThumbnailStrip({
-    required this.images,
-    required this.selectedIndex,
-    required this.onSelected,
-  });
-
-  static const double _size = 48;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: AppColors.surface,
-      padding: const EdgeInsets.only(
-        top: AppSpacing.sm,
-        bottom: AppSpacing.md,
-      ),
-      child: SizedBox(
-        height: _size + 4,
-        child: ListView.separated(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          itemCount: images.length,
-          separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-          itemBuilder: (context, index) {
-            final isSelected = index == selectedIndex;
-            return GestureDetector(
-              onTap: () => onSelected(index),
-              child: AnimatedScale(
-                scale: isSelected ? 1.04 : 1.0,
-                duration: const Duration(milliseconds: 180),
-                child: AnimatedOpacity(
-                  opacity: isSelected ? 1.0 : 0.65,
-                  duration: const Duration(milliseconds: 180),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                  width: _size,
-                  height: _size,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.seed.withValues(alpha: 0.4)
-                          : Colors.transparent,
-                      width: 1,
-                    ),
-                  ),
-                  child: ClipRRect(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.sm - 1),
-                    child: CachedNetworkImage(
-                      imageUrl: images[index].url,
-                      width: _size,
-                      height: _size,
-                      fit: BoxFit.contain,
-                      placeholder: (_, _) => const SizedBox.shrink(),
-                      errorWidget: (_, _, _) => AppImagePlaceholder(
-                        width: _size,
-                        height: _size,
-                      ),
-                    ),
-                  ),
-                ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }
@@ -623,27 +528,6 @@ class _ContentSection extends StatelessWidget {
 
   const _ContentSection({required this.item});
 
-  static final _countryLineRegex =
-      RegExp(r'Страна[- ]производитель\s*:\s*(.+)', caseSensitive: false);
-
-  /// Extracts "Страна-производитель: ..." from [text], returning the
-  /// cleaned text and the extracted country (if any).
-  static ({String? text, String? country}) _extractCountry(String? text) {
-    if (text == null) return (text: null, country: null);
-    final match = _countryLineRegex.firstMatch(text);
-    if (match == null) return (text: text, country: null);
-
-    final country = match.group(1)!.trim();
-    final cleaned = text
-        .replaceFirst(_countryLineRegex, '')
-        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-        .trim();
-    return (
-      text: cleaned.isEmpty ? null : cleaned,
-      country: country.isEmpty ? null : country,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final stock = availabilityText(
@@ -652,16 +536,10 @@ class _ContentSection extends StatelessWidget {
       detailed: true,
     );
     final stockColor = availabilityColor(stock);
-
-    final rawShort = _stripHtml(item.shortDescription);
-    final rawFull = _stripHtml(item.fullDescription);
-
-    final shortResult = _extractCountry(rawShort);
-    final fullResult = _extractCountry(rawFull);
-
-    final shortDesc = shortResult.text;
-    final fullDesc = fullResult.text;
-    final country = shortResult.country ?? fullResult.country;
+    final description = prepareCatalogDescription(
+      full: item.fullDescription,
+      short: item.shortDescription,
+    );
 
     return Container(
       width: double.infinity,
@@ -732,43 +610,25 @@ class _ContentSection extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl),
             _buildChips(),
           ],
-          if (shortDesc != null) ...[
+          if (description != null && !description.isEmpty) ...[
             const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Описание'),
-            const SizedBox(height: AppSpacing.sm),
-            _BodyText(text: shortDesc),
+            ProductDescriptionSection(
+              fullDescription: item.fullDescription,
+              shortDescription: item.shortDescription,
+            ),
           ],
-          if (fullDesc != null) ...[
-            const SizedBox(height: AppSpacing.xxl),
-            const _SectionTitle(text: 'Подробнее'),
-            const SizedBox(height: AppSpacing.sm),
-            _BodyText(text: fullDesc),
-          ],
-          if (country != null) ...[
+          if (description?.country != null) ...[
             const SizedBox(height: AppSpacing.xxl),
             const _SectionTitle(text: 'Характеристики'),
             const SizedBox(height: AppSpacing.sm),
-            _SpecRow(label: 'Страна-производитель', value: country),
+            _SpecRow(
+              label: 'Страна-производитель',
+              value: description!.country!,
+            ),
           ],
         ],
       ),
     );
-  }
-
-  static final _htmlTagRegex = RegExp(r'<[^>]*>');
-
-  static String? _stripHtml(String? raw) {
-    if (raw == null) return null;
-    var text = raw
-        .replaceAll(_htmlTagRegex, '')
-        .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
-        .replaceAll('&lt;', '<')
-        .replaceAll('&gt;', '>')
-        .replaceAll('&quot;', '"')
-        .replaceAll('&#39;', "'");
-    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
-    return text.isEmpty ? null : text;
   }
 
   Widget _buildPrice() {
@@ -866,35 +726,6 @@ class _InfoChip extends StatelessWidget {
           letterSpacing: 0.15,
         ),
       ),
-    );
-  }
-}
-
-class _BodyText extends StatelessWidget {
-  final String text;
-
-  const _BodyText({required this.text});
-
-  static const _style = TextStyle(
-    fontSize: 14,
-    color: AppColors.textSecondary,
-    height: 1.6,
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    final paragraphs = text.split(RegExp(r'\n\s*\n'));
-    if (paragraphs.length <= 1) {
-      return Text(text, style: _style);
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (int i = 0; i < paragraphs.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.lg),
-          Text(paragraphs[i].trim(), style: _style),
-        ],
-      ],
     );
   }
 }

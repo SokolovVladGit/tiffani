@@ -10,7 +10,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../domain/entities/info_block_entity.dart';
 import '../cubit/info_cubit.dart';
 import '../cubit/info_state.dart';
+import '../info_feed.dart';
 import '../widgets/info_block_renderer.dart';
+import '../widgets/info_editorial_section.dart';
 
 class InfoPage extends StatefulWidget {
   const InfoPage({super.key});
@@ -56,13 +58,15 @@ class _InfoPageState extends State<InfoPage> {
               BlocBuilder<InfoCubit, InfoState>(
                 builder: (context, state) {
                   return switch (state.status) {
-                    InfoStatus.initial || InfoStatus.loading =>
-                      const _LoadingView(),
+                    InfoStatus.initial ||
+                    InfoStatus.loading => const _LoadingView(),
                     InfoStatus.error => _ErrorView(
-                        message: state.errorMessage ?? 'Что-то пошло не так',
-                        onRetry: () => _cubit.load(),
-                      ),
-                    InfoStatus.loaded => _LoadedView(blocks: state.blocks),
+                      message: state.errorMessage ?? 'Что-то пошло не так',
+                      onRetry: () => _cubit.load(),
+                    ),
+                    InfoStatus.loaded => InfoLoadedContent(
+                      blocks: state.blocks,
+                    ),
                   };
                 },
               ),
@@ -76,16 +80,16 @@ class _InfoPageState extends State<InfoPage> {
 
 // ---------------------------------------------------------------------------
 
-class _LoadedView extends StatefulWidget {
+class InfoLoadedContent extends StatefulWidget {
   final List<InfoBlockEntity> blocks;
 
-  const _LoadedView({required this.blocks});
+  const InfoLoadedContent({super.key, required this.blocks});
 
   @override
-  State<_LoadedView> createState() => _LoadedViewState();
+  State<InfoLoadedContent> createState() => _InfoLoadedContentState();
 }
 
-class _LoadedViewState extends State<_LoadedView> {
+class _InfoLoadedContentState extends State<InfoLoadedContent> {
   final _scrollController = ScrollController();
   final _heroOffset = ValueNotifier<double>(0);
   final _revealedIndices = <int>{};
@@ -110,36 +114,37 @@ class _LoadedViewState extends State<_LoadedView> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.blocks.isEmpty) return const _EmptyView();
-
     InfoBlockEntity? galleryBlock;
-    final displayBlocks = <InfoBlockEntity>[];
-    for (final b in widget.blocks) {
-      if (b.blockType == 'gallery') {
-        galleryBlock = b;
-      } else {
-        displayBlocks.add(b);
-      }
+    for (final block in widget.blocks) {
+      if (block.blockType == 'gallery') galleryBlock = block;
     }
+
+    final feed = composeInfoFeed(widget.blocks);
 
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).padding.bottom + AppSpacing.xxxl * 2,
       ),
-      itemCount: displayBlocks.length,
+      itemCount: feed.length,
       itemBuilder: (_, index) {
-        final block = displayBlocks[index];
+        final slot = feed[index];
+        if (slot.isEditorial) {
+          final top = index == 0
+              ? MediaQuery.paddingOf(context).top + AppSpacing.xxl
+              : AppSpacing.xxl;
+          return InfoEditorialSection(topPadding: top);
+        }
+
+        final block = slot.block!;
         final topSpacing = _spacingBefore(block.blockType, index);
         final isHero = index == 0 && block.blockType == 'hero';
 
         if (isHero) {
           return ValueListenableBuilder<double>(
             valueListenable: _heroOffset,
-            builder: (_, offset, __) => InfoBlockRenderer(
-              block: block,
-              scrollOffset: offset,
-            ),
+            builder: (_, offset, __) =>
+                InfoBlockRenderer(block: block, scrollOffset: offset),
           );
         }
 
@@ -266,25 +271,6 @@ class _LoadingView extends StatelessWidget {
 
 // ---------------------------------------------------------------------------
 
-class _EmptyView extends StatelessWidget {
-  const _EmptyView();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(AppSpacing.xxxl),
-        child: Text(
-          'Информация пока недоступна',
-          style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -314,10 +300,7 @@ class _ErrorView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Повторить'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Повторить')),
           ],
         ),
       ),

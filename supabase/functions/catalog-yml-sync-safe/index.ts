@@ -1,9 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { parseTildaYml } from "../catalog-sync/yml-parser.ts";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { upsertCatalogSlice } from "../catalog-sync/sync-engine.ts";
 import type { TildaCatalog } from "../catalog-sync/types.ts";
 
+import { authorizeSafeSync, type SafeSyncAuthResult } from "./auth.ts";
 import { loadSafeSyncConfig } from "./config.ts";
+import { fetchValidatedYml, type ValidatedYml } from "./yml-guard.ts";
 import {
   computeMissingCandidates,
   type MissingCandidatesResult,
@@ -54,8 +55,28 @@ interface RequestBody {
   source?: unknown;
 }
 
-Deno.serve(async (req) => {
+export interface SafeSyncDeps {
+  authorize: (req: Request, source: string) => Promise<SafeSyncAuthResult>;
+  fetchYml: (
+    url: string,
+    options: { timeoutMs: number; userAgent: string },
+  ) => Promise<ValidatedYml>;
+  createSupabase: (url: string, key: string) => SupabaseClient;
+}
+
+if (import.meta.main) {
+  Deno.serve((req) => handleSafeSyncRequest(req));
+}
+
+export async function handleSafeSyncRequest(
+  req: Request,
+  deps: Partial<SafeSyncDeps> = {},
+): Promise<Response> {
   const startedAt = Date.now();
+  const authorize = deps.authorize ?? authorizeSafeSync;
+  const fetchYml = deps.fetchYml ?? fetchValidatedYml;
+  const createSupabase = deps.createSupabase ?? ((url, key) =>
+    createClient(url, key, { auth: { persistSession: false } }));
 
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: CORS_HEADERS });
@@ -88,6 +109,11 @@ Deno.serve(async (req) => {
     ? body.source
     : "manual";
 
+  const auth = await authorize(req, source);
+  if (!auth.ok) {
+    return jsonResponse({ error: auth.message }, auth.status);
+  }
+
   let config;
   try {
     config = loadSafeSyncConfig();
@@ -107,9 +133,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const client = createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false },
-  });
+  const client = createSupabase(supabaseUrl, supabaseKey);
 
   const initialStatus: SafeSyncRunStatus = dryRun ? "dry_run" : "running";
   const runId = await createSafeSyncRun(client, initialStatus, {
@@ -120,17 +144,15 @@ Deno.serve(async (req) => {
 
   let catalog: TildaCatalog;
   let ymlSizeBytes = 0;
+  let ymlFinalUrl = config.tildaYmlUrl;
   try {
-    const ymlResp = await fetch(config.tildaYmlUrl, {
-      headers: { "User-Agent": config.userAgent },
-      signal: AbortSignal.timeout(config.requestTimeoutMs),
+    const loaded = await fetchYml(config.tildaYmlUrl, {
+      timeoutMs: config.requestTimeoutMs,
+      userAgent: config.userAgent,
     });
-    if (!ymlResp.ok) {
-      throw new Error(`YML fetch failed: HTTP ${ymlResp.status}`);
-    }
-    const ymlText = await ymlResp.text();
-    ymlSizeBytes = ymlText.length;
-    catalog = parseTildaYml(ymlText);
+    catalog = loaded.catalog;
+    ymlSizeBytes = loaded.sizeBytes;
+    ymlFinalUrl = loaded.finalUrl;
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await persistSafeSyncErrors(client, runId, [
@@ -144,6 +166,8 @@ Deno.serve(async (req) => {
         dry_run: dryRun,
         no_deactivation: true,
         duration_ms: Date.now() - startedAt,
+        yml_final_url: ymlFinalUrl,
+        caller: auth.kind,
         fatal_error: message,
       },
     });
@@ -195,15 +219,19 @@ Deno.serve(async (req) => {
         dry_run: true,
         no_deactivation: true,
         duration_ms: Date.now() - startedAt,
+        yml_final_url: ymlFinalUrl,
+        caller: auth.kind,
         yml: ymlMetrics,
         missing_candidates: missing,
         missing_candidates_error: missingError,
       },
     });
 
-    return jsonResponse({
+      return jsonResponse({
       mode: "dry_run",
       run_id: runId,
+      caller: auth.kind,
+      yml_final_url: ymlFinalUrl,
       status: "dry_run_completed",
       duration_ms: Date.now() - startedAt,
       yml: ymlMetrics,
@@ -261,6 +289,8 @@ Deno.serve(async (req) => {
         no_deactivation: true,
         sync_seen_at: syncSeenAt,
         duration_ms: Date.now() - startedAt,
+        yml_final_url: ymlFinalUrl,
+        caller: auth.kind,
         yml: ymlMetrics,
         missing_candidates: missing,
         missing_candidates_error: missingError,
@@ -270,6 +300,8 @@ Deno.serve(async (req) => {
     return jsonResponse({
       mode: "live",
       run_id: runId,
+      caller: auth.kind,
+      yml_final_url: ymlFinalUrl,
       status: finalStatus,
       sync_seen_at: syncSeenAt,
       duration_ms: Date.now() - startedAt,
@@ -302,6 +334,8 @@ Deno.serve(async (req) => {
         no_deactivation: true,
         sync_seen_at: syncSeenAt,
         duration_ms: Date.now() - startedAt,
+        yml_final_url: ymlFinalUrl,
+        caller: auth.kind,
         yml: ymlMetrics,
         missing_candidates: missing,
         missing_candidates_error: missingError,
@@ -320,7 +354,7 @@ Deno.serve(async (req) => {
       500,
     );
   }
-});
+}
 
 interface YmlMetrics {
   size_bytes: number;

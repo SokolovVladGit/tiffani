@@ -100,10 +100,7 @@ class _CareGuideAboutPanelState extends State<CareGuideAboutPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _PanelHeader(
-                    expanded: _expanded,
-                    onTap: _toggle,
-                  ),
+                  _PanelHeader(expanded: _expanded, onTap: _toggle),
                   AnimatedSwitcher(
                     duration: _animDuration,
                     switchInCurve: _animCurve,
@@ -192,8 +189,7 @@ class _PanelHeader extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.5,
-                      color: AppColors.textSecondary
-                          .withValues(alpha: 0.85),
+                      color: AppColors.textSecondary.withValues(alpha: 0.85),
                       letterSpacing: 0.05,
                     ),
                   ),
@@ -204,6 +200,35 @@ class _PanelHeader extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AffordanceLabel extends StatelessWidget {
+  final String label;
+  final IconData icon;
+
+  const _AffordanceLabel({super.key, required this.label, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.textPrimary.withValues(alpha: 0.85);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            color: color,
+            letterSpacing: 1.6,
+            height: 1.0,
+          ),
+        ),
+        const SizedBox(width: 7),
+        Icon(icon, size: 16, color: color),
+      ],
     );
   }
 }
@@ -248,33 +273,18 @@ class _HeaderAffordance extends StatelessWidget {
       duration: const Duration(milliseconds: 220),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeOut,
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: child,
-      ),
+      transitionBuilder: (child, animation) =>
+          FadeTransition(opacity: animation, child: child),
       child: expanded
-          ? const SizedBox.shrink(key: ValueKey('expanded-aff'))
-          : Row(
-              key: const ValueKey('read-aff'),
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'ЧИТАТЬ',
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary.withValues(alpha: 0.85),
-                    letterSpacing: 1.6,
-                    height: 1.0,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 14,
-                  color: AppColors.textPrimary.withValues(alpha: 0.85),
-                ),
-              ],
+          ? const _AffordanceLabel(
+              key: ValueKey('collapse-aff'),
+              label: 'СВЕРНУТЬ',
+              icon: Icons.keyboard_arrow_up_rounded,
+            )
+          : const _AffordanceLabel(
+              key: ValueKey('read-aff'),
+              label: 'ЧИТАТЬ',
+              icon: Icons.arrow_forward_rounded,
             ),
     );
   }
@@ -374,9 +384,7 @@ class _ExpandedReadingArea extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 14.5,
                           height: 1.7,
-                          color: AppColors.textPrimary.withValues(
-                            alpha: 0.82,
-                          ),
+                          color: AppColors.textPrimary.withValues(alpha: 0.82),
                           fontWeight: FontWeight.w400,
                           letterSpacing: 0.05,
                         ),
@@ -388,10 +396,7 @@ class _ExpandedReadingArea extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.md + 2),
-          _ExpandedFooter(
-            onOpenFull: onOpenFull,
-            onCollapse: onCollapse,
-          ),
+          _ExpandedFooter(onOpenFull: onOpenFull, onCollapse: onCollapse),
         ],
       ),
     );
@@ -402,23 +407,23 @@ class _ExpandedFooter extends StatelessWidget {
   final VoidCallback onOpenFull;
   final VoidCallback onCollapse;
 
-  const _ExpandedFooter({
-    required this.onOpenFull,
-    required this.onCollapse,
-  });
+  const _ExpandedFooter({required this.onOpenFull, required this.onCollapse});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _FooterAction(
-          label: 'ОТКРЫТЬ ПОЛНОСТЬЮ',
-          trailingIcon: Icons.arrow_forward_rounded,
-          alpha: 0.62,
-          onTap: onOpenFull,
+        Expanded(
+          child: _FooterAction(
+            label: 'ОТКРЫТЬ ПОЛНОСТЬЮ',
+            trailingIcon: Icons.arrow_forward_rounded,
+            alpha: 0.62,
+            expandLabel: true,
+            onTap: onOpenFull,
+          ),
         ),
-        const Spacer(),
+        const SizedBox(width: AppSpacing.sm),
         _FooterAction(
           label: 'СВЕРНУТЬ',
           leadingIcon: Icons.keyboard_arrow_up_rounded,
@@ -435,6 +440,7 @@ class _FooterAction extends StatelessWidget {
   final IconData? leadingIcon;
   final IconData? trailingIcon;
   final double alpha;
+  final bool expandLabel;
   final VoidCallback onTap;
 
   const _FooterAction({
@@ -442,6 +448,7 @@ class _FooterAction extends StatelessWidget {
     this.leadingIcon,
     this.trailingIcon,
     required this.alpha,
+    this.expandLabel = false,
     required this.onTap,
   });
 
@@ -452,33 +459,40 @@ class _FooterAction extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 4,
-          vertical: 6,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: expandLabel ? MainAxisSize.max : MainAxisSize.min,
           children: [
             if (leadingIcon != null) ...[
               Icon(leadingIcon, size: 14, color: color),
               const SizedBox(width: 6),
             ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: color,
-                letterSpacing: 1.4,
-                height: 1.0,
-              ),
-            ),
+            if (expandLabel)
+              Expanded(child: _labelText(color))
+            else
+              _labelText(color),
             if (trailingIcon != null) ...[
               const SizedBox(width: 7),
               Icon(trailingIcon, size: 14, color: color),
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _labelText(Color color) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      softWrap: false,
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        color: color,
+        letterSpacing: 1.4,
+        height: 1.0,
       ),
     );
   }

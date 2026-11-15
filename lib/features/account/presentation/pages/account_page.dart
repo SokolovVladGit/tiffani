@@ -11,6 +11,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_back_button.dart';
 import '../../../../core/widgets/tiffany_primary_button.dart';
+import '../../../cart/domain/order_reference.dart';
 import '../../../admin/domain/repositories/admin_access_repository.dart';
 import '../../../admin/presentation/pages/admin_panel_page.dart';
 import '../../domain/entities/order_summary_entity.dart';
@@ -25,13 +26,13 @@ const accountBgAsset = 'assets/images/home/acc_bg.jpg';
 
 /// Card surface used over the background.
 BoxDecoration accountCardDecoration() => BoxDecoration(
-      color: AppColors.surface.withValues(alpha: 0.78),
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      border: Border.all(
-        color: AppColors.border.withValues(alpha: 0.35),
-        width: 0.5,
-      ),
-    );
+  color: AppColors.surface.withValues(alpha: 0.78),
+  borderRadius: BorderRadius.circular(AppRadius.lg),
+  border: Border.all(
+    color: AppColors.border.withValues(alpha: 0.35),
+    width: 0.5,
+  ),
+);
 
 // =============================================================================
 // Account page — auth gate + account shell
@@ -72,10 +73,7 @@ class _AccountShell extends StatefulWidget {
   final AuthCubitState state;
   final bool showOrderHistory;
 
-  const _AccountShell({
-    required this.state,
-    this.showOrderHistory = false,
-  });
+  const _AccountShell({required this.state, this.showOrderHistory = false});
 
   @override
   State<_AccountShell> createState() => _AccountShellState();
@@ -92,8 +90,7 @@ class _AccountShellState extends State<_AccountShell> {
   @override
   void initState() {
     super.initState();
-    _section =
-        widget.showOrderHistory ? _Section.orderHistory : _Section.main;
+    _section = widget.showOrderHistory ? _Section.orderHistory : _Section.main;
     sl<AuthCubit>().refreshProfile();
     _resolveAdminStatus();
   }
@@ -142,17 +139,14 @@ class _AccountShellState extends State<_AccountShell> {
             state: widget.state,
             onOpenOrders: _openOrders,
           )
-        : _OrderHistoryContent(
-            key: const ValueKey(_Section.orderHistory),
-          );
+        : _OrderHistoryContent(key: const ValueKey(_Section.orderHistory));
   }
 
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthCubit, AuthCubitState>(
       listenWhen: (prev, curr) =>
-          prev.errorMessage != curr.errorMessage &&
-          curr.errorMessage != null,
+          prev.errorMessage != curr.errorMessage && curr.errorMessage != null,
       listener: (context, state) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
@@ -165,47 +159,41 @@ class _AccountShellState extends State<_AccountShell> {
           if (!didPop) _backToMain();
         },
         child: Scaffold(
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          leading: Center(child: AppBackButton(onTap: _handleBack)),
-          title: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: Text(
-              _title,
-              key: ValueKey(_title),
+          extendBodyBehindAppBar: true,
+          appBar: AppBar(
+            leading: Center(child: AppBackButton(onTap: _handleBack)),
+            title: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: Text(_title, key: ValueKey(_title)),
             ),
+            backgroundColor: Colors.transparent,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
           ),
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-        ),
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Image.asset(accountBgAsset, fit: BoxFit.cover),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              transitionBuilder: (child, animation) {
-                final offset = Tween<Offset>(
-                  begin: const Offset(0.05, 0),
-                  end: Offset.zero,
-                ).animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: offset,
-                    child: child,
-                  ),
-                );
-              },
-              child: _buildBody(),
-            ),
-          ],
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(accountBgAsset, fit: BoxFit.cover),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  final offset = Tween<Offset>(
+                    begin: const Offset(0.05, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(position: offset, child: child),
+                  );
+                },
+                child: _buildBody(),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -336,8 +324,7 @@ class _AccountMainContent extends StatelessWidget {
         // ── Personal data (display ↔ edit) ──
         BlocBuilder<AuthCubit, AuthCubitState>(
           buildWhen: (prev, curr) =>
-              prev.profile != curr.profile ||
-              prev.isLoading != curr.isLoading,
+              prev.profile != curr.profile || prev.isLoading != curr.isLoading,
           builder: (context, s) =>
               _ProfileSection(profile: s.profile, isLoading: s.isLoading),
         ),
@@ -613,9 +600,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
         const SizedBox(height: AppSpacing.md),
         TextFormField(
           controller: _loyaltyCtrl,
-          decoration: const InputDecoration(
-            hintText: 'Номер карты клиента',
-          ),
+          decoration: const InputDecoration(hintText: 'Номер карты клиента'),
           textInputAction: TextInputAction.done,
           onFieldSubmitted: (_) => _saveEdit(),
         ),
@@ -732,9 +717,7 @@ class _OrderHistoryContentState extends State<_OrderHistoryContent> {
       future: _ordersFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator.adaptive(),
-          );
+          return const Center(child: CircularProgressIndicator.adaptive());
         }
 
         final orders = snapshot.data ?? [];
@@ -752,8 +735,7 @@ class _OrderHistoryContentState extends State<_OrderHistoryContent> {
           ),
           itemCount: orders.length,
           separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.sm),
-          itemBuilder: (context, index) =>
-              _OrderCard(order: orders[index]),
+          itemBuilder: (context, index) => _OrderCard(order: orders[index]),
         );
       },
     );
@@ -832,7 +814,7 @@ class _OrderCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  _formatDate(order.createdAt),
+                  '#${shortOrderReference(order.id)} · ${_formatDate(order.createdAt)}',
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -929,7 +911,8 @@ class _StatusBadge extends StatelessWidget {
     switch (status) {
       case 'new':
         return _BadgeStyle(
-          AppColors.surfaceDim, AppColors.textSecondary,
+          AppColors.surfaceDim,
+          AppColors.textSecondary,
           outlined: true,
         );
       case 'processing':
@@ -970,12 +953,7 @@ class _AdminAccountContent extends StatelessWidget {
     final topPad = MediaQuery.of(context).padding.top + kToolbarHeight;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        0,
-        topPad + AppSpacing.sm,
-        0,
-        0,
-      ),
+      padding: EdgeInsets.fromLTRB(0, topPad + AppSpacing.sm, 0, 0),
       child: Column(
         children: [
           Padding(

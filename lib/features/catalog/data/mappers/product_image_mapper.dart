@@ -8,6 +8,7 @@ extension ProductImageMapper on ProductImageDto {
       productId: productId,
       url: url,
       position: position,
+      source: source,
     );
   }
 }

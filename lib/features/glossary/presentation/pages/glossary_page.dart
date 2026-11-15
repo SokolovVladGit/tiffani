@@ -3,15 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_radius.dart';
-import '../../../../core/theme/app_shadows.dart';
 import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/frosted_back_button.dart';
 import '../../../../core/widgets/hero_curve_clipper.dart';
 import '../../data/glossary_static_entries.dart';
-import '../../domain/entities/glossary_item.dart';
 import '../widgets/care_guide_about_panel.dart';
+import '../widgets/glossary_expandable_card.dart';
+import '../widgets/glossary_section_heading.dart';
 
 /// "Уход и ингредиенты" — main editorial reference destination
 /// covering brand context, ritual framing, ingredients, and terminology.
@@ -66,9 +64,7 @@ class _GlossaryPageState extends State<GlossaryPage> {
                 fit: BoxFit.cover,
               ),
             ),
-            const Positioned.fill(
-              child: ColoredBox(color: Color(0x38FFFFFF)),
-            ),
+            const Positioned.fill(child: ColoredBox(color: Color(0x38FFFFFF))),
             CustomScrollView(
               controller: _scrollController,
               cacheExtent: 600,
@@ -82,16 +78,11 @@ class _GlossaryPageState extends State<GlossaryPage> {
                 ),
                 const SliverToBoxAdapter(child: _GuideLeadSection()),
                 const SliverPadding(
-                  padding: EdgeInsets.fromLTRB(
-                    0,
-                    AppSpacing.xxl,
-                    0,
-                    0,
-                  ),
+                  padding: EdgeInsets.fromLTRB(0, AppSpacing.xxl, 0, 0),
                   sliver: SliverToBoxAdapter(child: CareGuideAboutPanel()),
                 ),
                 SliverToBoxAdapter(
-                  child: _GlossarySectionHeading(
+                  child: GlossarySectionHeading(
                     count: kGlossaryStaticItems.length,
                   ),
                 ),
@@ -111,7 +102,7 @@ class _GlossaryPageState extends State<GlossaryPage> {
                         delay: Duration(
                           milliseconds: (index * 26).clamp(0, 220),
                         ),
-                        child: _GlossaryExpandableCard(
+                        child: GlossaryExpandableCard(
                           item: kGlossaryStaticItems[index],
                         ),
                       );
@@ -120,8 +111,8 @@ class _GlossaryPageState extends State<GlossaryPage> {
                 ),
                 SliverToBoxAdapter(
                   child: SizedBox(
-                    height: MediaQuery.paddingOf(context).bottom +
-                        AppSpacing.xxxl,
+                    height:
+                        MediaQuery.paddingOf(context).bottom + AppSpacing.xxxl,
                   ),
                 ),
               ],
@@ -312,82 +303,6 @@ class _GuideLeadSection extends StatelessWidget {
 }
 
 // ============================================================
-// SECTION HEADING — Glossary
-// ============================================================
-
-class _GlossarySectionHeading extends StatelessWidget {
-  final int count;
-
-  const _GlossarySectionHeading({required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.xxxl,
-        AppSpacing.lg,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 28,
-            height: 1.5,
-            decoration: BoxDecoration(
-              color: AppColors.textPrimary.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(1),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md + 2),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text(
-                  'Глоссарий',
-                  style: AppTextStyles.pageTitle.copyWith(
-                    fontSize: 23,
-                    letterSpacing: -0.35,
-                    height: 1.05,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  '$count терминов',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textTertiary.withValues(alpha: 0.85),
-                    letterSpacing: 0.15,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs + 2),
-          Text(
-            'Ингредиенты и термины',
-            style: TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              color: AppColors.textSecondary.withValues(alpha: 0.72),
-              height: 1.3,
-              letterSpacing: 0.15,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ============================================================
 // EDITORIAL KICKER — small rule + uppercase label
 // ============================================================
 
@@ -423,343 +338,6 @@ class _EditorialKicker extends StatelessWidget {
 }
 
 // ============================================================
-// EXPANDABLE GLOSSARY CARD — composed header + monogram identity
-// ============================================================
-
-class _GlossaryExpandableCard extends StatefulWidget {
-  final GlossaryItem item;
-
-  const _GlossaryExpandableCard({required this.item});
-
-  @override
-  State<_GlossaryExpandableCard> createState() =>
-      _GlossaryExpandableCardState();
-}
-
-class _GlossaryExpandableCardState extends State<_GlossaryExpandableCard>
-    with SingleTickerProviderStateMixin {
-  static const _animDuration = Duration(milliseconds: 280);
-  static const _animCurve = Curves.easeOutCubic;
-
-  bool _expanded = false;
-  bool _pressed = false;
-
-  void _toggle() {
-    HapticFeedback.selectionClick();
-    setState(() => _expanded = !_expanded);
-  }
-
-  String get _monogram {
-    final raw = widget.item.title.trim();
-    if (raw.isEmpty) return '·';
-    return raw.characters.first.toUpperCase();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final shadows = _expanded
-        ? AppShadows.cardPremium
-        : const [
-            BoxShadow(
-              color: Color(0x07000000),
-              blurRadius: 12,
-              spreadRadius: -2,
-              offset: Offset(0, 5),
-            ),
-          ];
-
-    final borderColor = AppColors.border.withValues(
-      alpha: _expanded ? 0.0 : 0.5,
-    );
-
-    return Listener(
-      onPointerDown: (_) => setState(() => _pressed = true),
-      onPointerUp: (_) => setState(() => _pressed = false),
-      onPointerCancel: (_) => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.987 : 1.0,
-        duration: const Duration(milliseconds: 110),
-        child: AnimatedContainer(
-          duration: _animDuration,
-          curve: _animCurve,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            boxShadow: shadows,
-            border: Border.all(color: borderColor, width: 0.5),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _toggle,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md + 2,
-                  AppSpacing.md + 2,
-                  AppSpacing.md,
-                  AppSpacing.md + 2,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _CardHeaderRow(
-                      monogram: _monogram,
-                      title: widget.item.title,
-                      expanded: _expanded,
-                      animDuration: _animDuration,
-                      animCurve: _animCurve,
-                    ),
-                    AnimatedSize(
-                      duration: _animDuration,
-                      curve: _animCurve,
-                      alignment: Alignment.topLeft,
-                      child: _expanded
-                          ? _ExpandedBody(
-                              key: const ValueKey('expanded'),
-                              text: widget.item.description,
-                            )
-                          : _CollapsedPreview(
-                              key: const ValueKey('collapsed'),
-                              text: widget.item.description,
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// Card header
-// ----------------------------------------------------------------------
-
-class _CardHeaderRow extends StatelessWidget {
-  final String monogram;
-  final String title;
-  final bool expanded;
-  final Duration animDuration;
-  final Curve animCurve;
-
-  const _CardHeaderRow({
-    required this.monogram,
-    required this.title,
-    required this.expanded,
-    required this.animDuration,
-    required this.animCurve,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        _MonogramChip(letter: monogram, expanded: expanded),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 15.5,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary.withValues(alpha: 0.94),
-              height: 1.2,
-              letterSpacing: -0.25,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        _ExpandIndicator(
-          expanded: expanded,
-          animDuration: animDuration,
-          animCurve: animCurve,
-        ),
-      ],
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// Monogram chip — leading identity element
-// ----------------------------------------------------------------------
-
-class _MonogramChip extends StatelessWidget {
-  final String letter;
-  final bool expanded;
-
-  const _MonogramChip({required this.letter, required this.expanded});
-
-  static const _size = 36.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      width: _size,
-      height: _size,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.surfaceWarm, AppColors.creamSubtle],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md - 2),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(
-            alpha: expanded ? 0.14 : 0.08,
-          ),
-          width: 0.5,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: Text(
-        letter,
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textPrimary.withValues(alpha: 0.78),
-          height: 1.0,
-          letterSpacing: -0.4,
-        ),
-      ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// Expand indicator — circular tinted background, rotating chevron
-// ----------------------------------------------------------------------
-
-class _ExpandIndicator extends StatelessWidget {
-  final bool expanded;
-  final Duration animDuration;
-  final Curve animCurve;
-
-  const _ExpandIndicator({
-    required this.expanded,
-    required this.animDuration,
-    required this.animCurve,
-  });
-
-  static const _size = 28.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: animDuration,
-      curve: animCurve,
-      width: _size,
-      height: _size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.textPrimary.withValues(
-          alpha: expanded ? 0.06 : 0.0,
-        ),
-      ),
-      alignment: Alignment.center,
-      child: AnimatedRotation(
-        turns: expanded ? 0.5 : 0.0,
-        duration: animDuration,
-        curve: animCurve,
-        child: Icon(
-          Icons.keyboard_arrow_down_rounded,
-          size: 20,
-          color: AppColors.textSecondary.withValues(
-            alpha: expanded ? 0.92 : 0.7,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// Collapsed preview — single line summary aligned with title column
-// ----------------------------------------------------------------------
-
-class _CollapsedPreview extends StatelessWidget {
-  final String text;
-
-  const _CollapsedPreview({super.key, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.sm,
-        left: 36 + AppSpacing.md,
-        right: AppSpacing.sm,
-      ),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 13,
-          height: 1.4,
-          color: AppColors.textSecondary.withValues(alpha: 0.85),
-          fontWeight: FontWeight.w400,
-        ),
-      ),
-    );
-  }
-}
-
-// ----------------------------------------------------------------------
-// Expanded body — inset tonal panel + breathable paragraph
-// ----------------------------------------------------------------------
-
-class _ExpandedBody extends StatelessWidget {
-  final String text;
-
-  const _ExpandedBody({super.key, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        top: AppSpacing.md,
-        bottom: 2,
-      ),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg - 2,
-          AppSpacing.md + 2,
-          AppSpacing.lg - 2,
-          AppSpacing.md + 4,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceWarm,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: AppColors.textPrimary.withValues(alpha: 0.05),
-            width: 0.5,
-          ),
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 14.5,
-            height: 1.68,
-            color: AppColors.textPrimary.withValues(alpha: 0.82),
-            fontWeight: FontWeight.w400,
-            letterSpacing: 0.08,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
 // REVEAL-ONCE — subtle fade + slide entrance, plays once per mount
 // ============================================================
 
@@ -767,10 +345,7 @@ class _RevealOnce extends StatefulWidget {
   final Widget child;
   final Duration delay;
 
-  const _RevealOnce({
-    required this.child,
-    this.delay = Duration.zero,
-  });
+  const _RevealOnce({required this.child, this.delay = Duration.zero});
 
   @override
   State<_RevealOnce> createState() => _RevealOnceState();
